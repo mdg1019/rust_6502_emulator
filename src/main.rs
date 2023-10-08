@@ -1,9 +1,8 @@
-mod registers;
-mod status_flags;
+mod cpu;
 
-use crate::registers::Registers;
+use crate::cpu::Cpu;
 
 fn main() {
-    let mut registers = Registers::new();
-    println!("A: {}", registers.a);
+    let mut cpu = Cpu::new();
+    println!("A: {}", cpu.registers.a);
 }

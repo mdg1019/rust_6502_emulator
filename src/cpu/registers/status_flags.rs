@@ -6,12 +6,12 @@ const OVERFLOW_FLAG: u8 = 0x40;
 const NEGATIVE_FLAG: u8 = 0x80;
 
 pub struct StatusFlags {
-  pub carry: bool,
-  pub zero: bool,
-  pub interrupt_disable: bool,
-  pub decimal_mode: bool,
-  pub overflow: bool,
-  pub negative: bool,
+    pub carry: bool,
+    pub zero: bool,
+    pub interrupt_disable: bool,
+    pub decimal_mode: bool,
+    pub overflow: bool,
+    pub negative: bool,
 }
 
 impl StatusFlags {

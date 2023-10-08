@@ -23,4 +23,13 @@ impl Registers {
             pc: 0,    // Initialize program counter to 0
         }
     }
+
+    pub fn to_string(&self) -> String {
+        format!("A: {:02X}\r\n", self.a) +
+        &format!("X: {:02X}\r\n", self.x) +
+        &format!("Y: {:02X}\r\n", self.y) +
+        &format!("Status: {:02X}\r\n", self.status.to_byte()) +
+        &format!("SP: {:02X}\r\n", self.sp) +
+        &format!("PC: {:04X}", self.pc)  
+    }
 }

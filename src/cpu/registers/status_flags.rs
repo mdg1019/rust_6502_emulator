@@ -3,7 +3,6 @@ const ZERO_FLAG: u8 = 0x02;
 const INTERRUPT_FLAG: u8 = 0x04;
 const DECIMAL_FLAG: u8 = 0x08;
 const BREAK_FLAG: u8 = 0x10;
-const UNUSED_FLAG: u8 = 0x20;
 const OVERFLOW_FLAG: u8 = 0x40;
 const NEGATIVE_FLAG: u8 = 0x80;
 

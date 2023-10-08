@@ -10,4 +10,12 @@ impl Memory {
       memory: [0x00u8; SIXTY_FOUR_K_BYTES],
     }
   }
+
+  pub fn set_8_bit_value(&mut self, location: usize, value: u8) {
+    self.memory[location] = value;
+  }
+
+  pub fn get_8_bit_value(&self, location: usize) -> u8 {
+    self.memory[location]
+  }
 }

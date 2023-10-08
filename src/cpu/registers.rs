@@ -4,12 +4,12 @@ mod status_flags;
 use status_flags::StatusFlags;
 
 pub struct Registers {
-pub a: u8,
-pub x: u8,
-pub y: u8,
-pub p: StatusFlags,
-pub sp: u8,
-pub pc: u16,
+    pub a: u8,
+    pub x: u8,
+    pub y: u8,
+    pub p: StatusFlags,
+    pub sp: u8,
+    pub pc: u16,
 }
 
 impl Registers {

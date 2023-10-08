@@ -28,7 +28,7 @@ impl Registers {
         format!("A: {:02X}\r\n", self.a) +
         &format!("X: {:02X}\r\n", self.x) +
         &format!("Y: {:02X}\r\n", self.y) +
-        &format!("Status: {:02X}\r\n", self.status.to_byte()) +
+        &format!("Status: {:02X} {}\r\n", self.status.to_byte(), self.status.to_string()) +
         &format!("SP: {:02X}\r\n", self.sp) +
         &format!("PC: {:04X}", self.pc)  
     }

@@ -1,3 +1,9 @@
+mod registers;
+mod status_flags;
+
+use crate::registers::Registers;
+
 fn main() {
-    println!("Hello, world!");
+    let mut registers = Registers::new();
+    println!("A: {}", registers.a);
 }

@@ -8,95 +8,96 @@ const OVERFLOW_FLAG: u8 = 0x40;
 const NEGATIVE_FLAG: u8 = 0x80;
 
 pub struct StatusFlags {
-    pub carry: bool,
-    pub zero: bool,
-    pub interrupt: bool,
-    pub decimal: bool,
+    pub carry_flag: bool,
+    pub zero_flag: bool,
+    pub interrupt_disable_flag: bool,
+    pub decimal_flag: bool,
     pub break_flag: bool,
-    unused: bool,
-    pub overflow: bool,
-    pub negative: bool,
+    pub overflow_flag: bool,
+    pub negative_flag: bool,
 }
 
 impl StatusFlags {
     pub fn new() -> StatusFlags {
         StatusFlags {
-            carry: false,
-            zero: false,
-            interrupt: false,
-            decimal: false,
+            carry_flag: false,
+            zero_flag: false,
+            interrupt_disable_flag: false,
+            decimal_flag: false,
             break_flag: false,
-            unused: true,
-            overflow: false,
-            negative: false,
+            overflow_flag: false,
+            negative_flag: false,
         }
     }
 
-    // Convert status flags to a single u8 value
     pub fn to_byte(&self) -> u8 {
         let mut result: u8 = 0;
-        if self.carry {
+
+        if self.carry_flag {
             result |= CARRY_FLAG;
         }
-        if self.zero {
+
+        if self.zero_flag {
             result |= ZERO_FLAG;
         }
-        if self.interrupt {
+
+        if self.interrupt_disable_flag {
             result |= INTERRUPT_FLAG;
         }
-        if self.decimal {
+
+        if self.decimal_flag {
             result |= DECIMAL_FLAG;
         }
         if self.break_flag {
             result |= BREAK_FLAG;
         }
-        result != UNUSED_FLAG;
-        if self.overflow {
+
+        if self.overflow_flag {
             result |= OVERFLOW_FLAG;
         }
-        if self.negative {
+
+        if self.negative_flag {
             result |= NEGATIVE_FLAG;
         }
+
         result
     }
 
-    // Instantiate StatusFlags from a u8 value
     pub fn from_byte(byte: u8) -> StatusFlags {
         StatusFlags {
-            carry: (byte & CARRY_FLAG) != 0,
-            zero: (byte & ZERO_FLAG) != 0,
-            interrupt: (byte & INTERRUPT_FLAG) != 0,
-            decimal: (byte & DECIMAL_FLAG) != 0,
+            carry_flag: (byte & CARRY_FLAG) != 0,
+            zero_flag: (byte & ZERO_FLAG) != 0,
+            interrupt_disable_flag: (byte & INTERRUPT_FLAG) != 0,
+            decimal_flag: (byte & DECIMAL_FLAG) != 0,
             break_flag: (byte & BREAK_FLAG) != 0,
-            unused: true,
-            overflow: (byte & OVERFLOW_FLAG) != 0,
-            negative: (byte & NEGATIVE_FLAG) != 0,
+            overflow_flag: (byte & OVERFLOW_FLAG) != 0,
+            negative_flag: (byte & NEGATIVE_FLAG) != 0,
         }
     }
 
     pub fn to_string(&self) -> String {
-        match self.negative {
+        match self.negative_flag {
             true => "N",
             false => "-",
         }.to_string() +
-        match self.overflow {
+        match self.overflow_flag {
             true => "O",
             false => "-"
         } +
-        "U" + 
-        match self.decimal {
+        "1" + 
+        match self.decimal_flag {
             true => "D",
             false => "-"
         } +
-        match self.interrupt {
+        match self.interrupt_disable_flag {
             true => "I",
             false => "-"
         } +
-        match self.zero {
+        match self.zero_flag {
             true => "Z",
             false => "-"
         } +              
-        match self.carry {
+        match self.carry_flag {
             true => "C",
             false => "-",
         }

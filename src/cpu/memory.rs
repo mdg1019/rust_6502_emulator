@@ -19,7 +19,7 @@ impl Memory {
     self.memory[location] = value;
   }
   
-  pub fn get_16_bit_value(self, location: usize) -> u16 {
+  pub fn get_16_bit_value(&self, location: usize) -> u16 {
     let lsb = self.memory[location];
     let msb = self.memory[location + 1];
 

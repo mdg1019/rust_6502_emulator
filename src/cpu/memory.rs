@@ -19,3 +19,32 @@ impl Memory {
     self.memory[location]
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_set_8_bit_value() {
+    let mut memory = Memory::new();
+
+    assert_eq!(memory.memory[0], 0x00);
+
+    memory.set_8_bit_value(0, 0xff);
+
+    assert_eq!(memory.memory[0], 0xff);
+  }
+
+  #[test]
+  fn test_get_8_bit_value() {
+    let mut memory = Memory::new();
+
+    assert_eq!(memory.memory[0], 0x00);
+
+    memory.memory[0] = 0xff;
+
+    let value = memory.get_8_bit_value(0);
+
+    assert_eq!(value, 0xff);
+  }
+ }

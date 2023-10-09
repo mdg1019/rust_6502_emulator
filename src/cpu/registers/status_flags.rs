@@ -3,6 +3,7 @@ const ZERO_FLAG: u8 = 0x02;
 const INTERRUPT_FLAG: u8 = 0x04;
 const DECIMAL_FLAG: u8 = 0x08;
 const BREAK_FLAG: u8 = 0x10;
+const UNUSED_FLAG: u8 = 0x20;
 const OVERFLOW_FLAG: u8 = 0x40;
 const NEGATIVE_FLAG: u8 = 0x80;
 
@@ -47,6 +48,9 @@ impl StatusFlags {
         if self.decimal_flag {
             result |= DECIMAL_FLAG;
         }
+
+        result |= UNUSED_FLAG;
+
         if self.break_flag {
             result |= BREAK_FLAG;
         }
@@ -100,5 +104,159 @@ impl StatusFlags {
             true => "C",
             false => "-",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_byte_for_no_carry() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & CARRY_FLAG;
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_to_byte_for_carry() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.carry_flag = true;
+
+        let value = status_flags.to_byte() & CARRY_FLAG;
+
+        assert_eq!(value, CARRY_FLAG);
+    }
+
+    #[test]
+    fn test_to_byte_for_not_zero() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & ZERO_FLAG;
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_to_byte_for_zero() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.zero_flag = true;
+
+        let value = status_flags.to_byte() & ZERO_FLAG;
+
+        assert_eq!(value, ZERO_FLAG);
+    }
+
+    #[test]
+    fn test_to_byte_for_interrupt_enabled() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & INTERRUPT_FLAG;
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_to_byte_for_interrupt_disabled() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.interrupt_disable_flag = true;
+
+        let value = status_flags.to_byte() & INTERRUPT_FLAG;
+
+        assert_eq!(value, INTERRUPT_FLAG);
+    }
+
+    #[test]
+    fn test_to_byte_for_not_decimal_mode() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & DECIMAL_FLAG;
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_to_byte_for_decimal_mode() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.decimal_flag = true;
+
+        let value = status_flags.to_byte() & DECIMAL_FLAG;
+
+        assert_eq!(value, DECIMAL_FLAG);
+    }
+
+    #[test]
+    fn test_to_byte_for_unused_set_to_1() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & UNUSED_FLAG;
+
+        assert_eq!(value, UNUSED_FLAG);
+    }
+
+    #[test]
+    fn test_to_byte_for_no_break() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & BREAK_FLAG;
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_to_byte_for_break() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.break_flag = true;
+
+        let value = status_flags.to_byte() & BREAK_FLAG;
+
+        assert_eq!(value, BREAK_FLAG);
+    }
+
+    #[test]
+    fn test_to_byte_for_no_overflow() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & OVERFLOW_FLAG;
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_to_byte_for_overflow() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.overflow_flag = true;
+
+        let value = status_flags.to_byte() & OVERFLOW_FLAG;
+
+        assert_eq!(value, OVERFLOW_FLAG);
+    }
+
+    #[test]
+    fn test_to_byte_for_not_negative() {
+        let status_flags = StatusFlags::new();
+
+        let value = status_flags.to_byte() & NEGATIVE_FLAG;
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_to_byte_for_negative() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.negative_flag = true;
+
+        let value = status_flags.to_byte() & NEGATIVE_FLAG;
+
+        assert_eq!(value, NEGATIVE_FLAG);
     }
 }

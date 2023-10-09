@@ -13,5 +13,4 @@ fn main() {
 
     println!("{}", cpu.memory.get_8_bit_value(0x0000));
 
-
 }

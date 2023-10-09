@@ -86,6 +86,10 @@ impl StatusFlags {
             false => "-"
         } +
         "1" + 
+        match self.break_flag {
+            true => "B",
+            false => "-"
+        } +
         match self.decimal_flag {
             true => "D",
             false => "-"
@@ -389,5 +393,147 @@ mod tests {
         status_flags.from_byte(NEGATIVE_FLAG);
 
         assert!(status_flags.negative_flag);  
+    }
+
+    #[test]
+    fn test_to_string_for_not_negative() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[0], '-' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_negative() {
+        let mut status_flags = StatusFlags::new();
+        status_flags.negative_flag = true;
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[0], 'N' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_no_overflow() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[1], '-' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_overflow() {
+        let mut status_flags = StatusFlags::new();
+        status_flags.overflow_flag = true;
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[1], 'O' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_unused_set_to_1() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[2], '1' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_no_break() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[3], '-' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_break() {
+        let mut status_flags = StatusFlags::new();
+        status_flags.break_flag = true;
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[3], 'B' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_no_decimal_mode() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[4], '-' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_decimal_mode() {
+        let mut status_flags = StatusFlags::new();
+        status_flags.decimal_flag = true;
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[4], 'D' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_interrupt_enabled() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[5], '-' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_interrupt_disabled() {
+        let mut status_flags = StatusFlags::new();
+        status_flags.interrupt_disable_flag = true;
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[5], 'I' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_not_zero() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[6], '-' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_zero() {
+        let mut status_flags = StatusFlags::new();
+        status_flags.zero_flag = true;
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[6], 'Z' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_no_carry() {
+        let status_flags = StatusFlags::new();
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[7], '-' as u8);
+    }
+
+    #[test]
+    fn test_to_string_for_carry() {
+        let mut status_flags = StatusFlags::new();
+        status_flags.carry_flag = true;
+
+        let result = status_flags.to_string();
+
+        assert_eq!(result.as_bytes()[7], 'C' as u8);
     }
 }

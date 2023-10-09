@@ -66,16 +66,14 @@ impl StatusFlags {
         result
     }
 
-    pub fn from_byte(byte: u8) -> StatusFlags {
-        StatusFlags {
-            carry_flag: (byte & CARRY_FLAG) != 0,
-            zero_flag: (byte & ZERO_FLAG) != 0,
-            interrupt_disable_flag: (byte & INTERRUPT_FLAG) != 0,
-            decimal_flag: (byte & DECIMAL_FLAG) != 0,
-            break_flag: (byte & BREAK_FLAG) != 0,
-            overflow_flag: (byte & OVERFLOW_FLAG) != 0,
-            negative_flag: (byte & NEGATIVE_FLAG) != 0,
-        }
+    pub fn from_byte(&mut self, byte: u8) {
+        self.carry_flag = (byte & CARRY_FLAG) != 0;
+        self.zero_flag = (byte & ZERO_FLAG) != 0;
+        self.interrupt_disable_flag = (byte & INTERRUPT_FLAG) != 0;
+        self.decimal_flag = (byte & DECIMAL_FLAG) != 0;
+        self.break_flag = (byte & BREAK_FLAG) != 0;
+        self.overflow_flag = (byte & OVERFLOW_FLAG) != 0;
+        self.negative_flag = (byte & NEGATIVE_FLAG) != 0;
     }
 
     pub fn to_string(&self) -> String {
@@ -258,5 +256,138 @@ mod tests {
         let value = status_flags.to_byte() & NEGATIVE_FLAG;
 
         assert_eq!(value, NEGATIVE_FLAG);
+    }
+
+    #[test]
+    fn test_from_byte_for_no_carry() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.carry_flag = true;
+        status_flags.from_byte(!CARRY_FLAG);
+
+        assert!(!status_flags.carry_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_carry() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.from_byte(CARRY_FLAG);
+
+        assert!(status_flags.carry_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_not_zero() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.zero_flag = true;
+        status_flags.from_byte(!ZERO_FLAG);
+
+        assert!(!status_flags.zero_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_zero() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.from_byte(ZERO_FLAG);
+
+        assert!(status_flags.zero_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_interrupt_enabled() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.interrupt_disable_flag = true;
+        status_flags.from_byte(!INTERRUPT_FLAG);
+
+        assert!(!status_flags.interrupt_disable_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_interrupt_disabled() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.from_byte(INTERRUPT_FLAG);
+
+        assert!(status_flags.interrupt_disable_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_not_decimal_mode() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.decimal_flag = true;
+        status_flags.from_byte(!DECIMAL_FLAG);
+
+        assert!(!status_flags.decimal_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_decimal_mode() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.from_byte(DECIMAL_FLAG);
+
+        assert!(status_flags.decimal_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_no_break() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.break_flag = true;
+        status_flags.from_byte(!BREAK_FLAG);
+
+        assert!(!status_flags.break_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_break() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.from_byte(BREAK_FLAG);
+
+        assert!(status_flags.break_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_no_overflow() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.overflow_flag = true;
+        status_flags.from_byte(!OVERFLOW_FLAG);
+
+        assert!(!status_flags.overflow_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_overflow() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.from_byte(OVERFLOW_FLAG);
+
+        assert!(status_flags.overflow_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_not_negative() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.negative_flag = true;
+        status_flags.from_byte(!NEGATIVE_FLAG);
+
+        assert!(!status_flags.negative_flag);  
+    }
+
+    #[test]
+    fn test_from_byte_for_negative() {
+        let mut status_flags = StatusFlags::new();
+
+        status_flags.from_byte(NEGATIVE_FLAG);
+
+        assert!(status_flags.negative_flag);  
     }
 }

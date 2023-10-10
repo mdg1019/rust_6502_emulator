@@ -1,3 +1,5 @@
+use std::str::from_utf8;
+
 const SIXTY_FOUR_K_BYTES: usize = 64 * 1024;
 
 pub struct Memory {
@@ -32,6 +34,47 @@ impl Memory {
 
     self.memory[location] = lsb as u8;
     self.memory[location + 1] = msb as u8;
+  }
+
+  pub fn create_page_hexdump(&self, page: u8) -> String {
+    let mut result = String::new();
+    let mut address: usize = (page as usize) << 8;
+
+    for row in 0..16 {
+      let mut row_result = format!("{:04X} ", address);
+      let mut hex_result = String::new();
+      let mut ascii_result = String::new();
+
+      for col in 0..16 {
+        let byte = self.memory[address];
+
+        hex_result = hex_result + &format!("{:02X} ", byte)[..];
+
+       match byte {
+          0..=31 => {
+              ascii_result.push('.');
+          }
+          _ => {
+              let byte_slice: &[u8] = &[byte];
+
+              if let Ok(byte_str) = std::str::from_utf8(byte_slice) {
+                  ascii_result.push_str(byte_str);
+              } else {
+                ascii_result.push('.');
+              }
+          }
+      };
+
+        address += 1;
+      }
+
+      row_result = row_result + &hex_result[..] + &ascii_result[..];
+
+
+      result = result + &row_result[..] + "\r\n";
+    }
+
+    result
   }
 }
 

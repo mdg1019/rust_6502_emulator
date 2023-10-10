@@ -1,10 +1,22 @@
 pub mod registers;
 pub mod memory;
+pub mod instruction;
 
 use registers::Registers;
 use memory::Memory;
+use instruction::Instruction;
+use instruction::AddressingMode;
 
 const RESET_VECTOR: usize = 0xfffc;
+
+const INSTRUCTION_SET: [Instruction; 1] = [
+  Instruction {
+    op_code: 0xA5,
+    mnemonic: "LDA",
+    clock_periods: 3,
+    addressing_mode: AddressingMode::ZeroPageDirect,
+  },
+];
 
 pub struct Cpu {
   pub registers: Registers,

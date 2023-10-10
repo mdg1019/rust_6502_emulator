@@ -1,4 +1,5 @@
-use std::str::from_utf8;
+use std::fs::File;
+use std::io::{self, Read};
 
 const SIXTY_FOUR_K_BYTES: usize = 64 * 1024;
 
@@ -75,6 +76,23 @@ impl Memory {
     }
 
     result
+  }
+
+  pub fn read_raw_file_into_memory(&mut self, file_path: &str, location: usize) -> io::Result<()> {
+    let mut file = File::open(file_path)?;
+
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+
+    let mut address = location;
+
+    for &byte in &buffer {
+      self.memory[address] = byte;
+
+      address += 1;
+    }
+
+    Ok(())
   }
 }
 

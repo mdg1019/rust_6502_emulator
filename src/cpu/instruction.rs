@@ -3,8 +3,9 @@ pub enum AddressingMode {
 }
 
 pub struct Instruction {
-  pub op_code: u8,
+  pub opcode: u8,
   pub mnemonic: &'static str,
+  pub bytes: u8,
   pub clock_periods: u8,
   pub addressing_mode: AddressingMode,
 }

@@ -19,4 +19,8 @@ fn main() {
     if let Some(line) = cpu.disassemble_opcode(0x8000) {
         println!("{}", line);
     }
+
+    let _result = cpu.execute_opcode(0x8000);
+    
+    println!("{}", cpu.registers.to_string());
 }

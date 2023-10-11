@@ -15,7 +15,7 @@ pub struct Registers {
 impl Registers {
     pub fn new() -> Registers {
         Registers {
-            a: 0,
+            a: 0xff,
             x: 0,
             y: 0,
             p: StatusFlags::new(),

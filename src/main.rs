@@ -20,7 +20,7 @@ fn main() {
         println!("{}", line);
     }
 
-    let _result = cpu.execute_opcode(0x8000);
+    let _result = cpu.execute_opcode();
     
     println!("{}", cpu.registers.to_string());
 }

@@ -41,12 +41,12 @@ impl Memory {
     let mut result = String::new();
     let mut address: usize = (page as usize) << 8;
 
-    for row in 0..16 {
+    for _ in 0..16 {
       let mut row_result = format!("{:04X} ", address);
       let mut hex_result = String::new();
       let mut ascii_result = String::new();
 
-      for col in 0..16 {
+      for _ in 0..16 {
         let byte = self.memory[address];
 
         hex_result = hex_result + &format!("{:02X} ", byte)[..];

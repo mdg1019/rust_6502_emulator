@@ -42,8 +42,8 @@ impl Cpu {
     self.registers.pc = self.memory.get_16_bit_value(RESET_VECTOR);
   }
 
-  pub fn execute_opcode(&mut self, location: usize) -> Option<ExecutionReturnValues> {
-    let instruction = self.get_instruction_for_opcode(location)?;
+  pub fn execute_opcode(&mut self) -> Option<ExecutionReturnValues> {
+    let instruction = self.get_instruction_for_opcode(self.registers.pc as usize)?;
 
     (instruction.execute)(self, instruction)
   }
@@ -59,7 +59,6 @@ impl Cpu {
 
     let operand = match instruction.addressing_mode {
       AddressingMode::ZeroPageDirect => format!("${:02X}", self.memory.get_8_bit_value(location + 1)),
-      _ => String::new(),
     };
 
     let result = format!("{:04X} {:<8} {:<4} {}", 
@@ -74,37 +73,81 @@ impl Cpu {
     INSTRUCTION_SET.into_iter().find(|i| i.opcode == opcode)
   }
 
-  fn get_value(cpu: &mut Cpu, instruction: Instruction) -> u8 {
+  fn get_value(&self, instruction: Instruction) -> u8 {
     match instruction.addressing_mode {
       AddressingMode::ZeroPageDirect => {
-        let operand = cpu.memory.get_8_bit_value((cpu.registers.pc + 1) as usize);
+        let operand = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
 
-        cpu.memory.get_8_bit_value(operand as usize)
+        self.memory.get_8_bit_value(operand as usize)
       },
-      _ => panic!("Unknown Addressing mode"),
     }
   }
 
-  fn check_for_zero_result(cpu: &mut Cpu) {
-    if cpu.registers.a == 0 {
-      cpu.registers.p.zero_flag = true;
-    }
+  pub fn set_zero_flag(&mut self) {
+    self.registers.p.zero_flag = self.registers.a == 0;
   }
 
-  fn check_for_negative_result(cpu: &mut Cpu) {
-    if cpu.registers.a & 0x80 != 0 {
-      cpu.registers.p.negative_flag = true;
-    }
+  pub fn set_negative_flag(&mut self) {
+    self.registers.p.negative_flag = self.registers.a & 0x80 != 0;
   }
 
-  fn lda_instruction(cpu: &mut Cpu, instruction: Instruction) -> Option<ExecutionReturnValues> {
-    let value = Cpu::get_value(cpu, instruction);
+  pub fn lda_instruction(&mut self, instruction: Instruction) -> Option<ExecutionReturnValues> {
+    let value = self.get_value(instruction);
 
-    cpu.registers.a = value;
+    self.registers.a = value;
 
-    Cpu::check_for_zero_result(cpu);
-    Cpu::check_for_negative_result(cpu);
+    self.set_zero_flag();
+    self.set_negative_flag();
 
     Some(ExecutionReturnValues { bytes: instruction.bytes, clock_periods: instruction.clock_periods })
   }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_set_zero_flag_when_not_zero() {
+      let mut cpu: Cpu = Cpu::new(0x8000);
+      cpu.registers.p.zero_flag = true;
+      cpu.registers.a = 0xff;
+
+      cpu.set_zero_flag();
+
+      assert!(!cpu.registers.p.zero_flag);
+    }
+
+    #[test]
+    fn test_set_zero_flag_when_zero() {
+      let mut cpu: Cpu = Cpu::new(0x8000);
+      cpu.registers.p.zero_flag = false;
+      cpu.registers.a = 0x00;
+
+      cpu.set_zero_flag();
+
+      assert!(cpu.registers.p.zero_flag);
+    }
+
+    #[test]
+    fn test_a5_lda_zero_page_direct_instruction() {
+      let mut cpu : Cpu = Cpu::new(0x8000);
+      cpu.registers.a = 0x00;
+      cpu.registers.pc = 0x8000;
+
+      cpu.memory.memory[0x50] = 0xff;
+      cpu.memory.memory[0x8000] = 0xa5;
+      cpu.memory.memory[0x8001] = 0x50;
+
+      let mut option_return_values = cpu.execute_opcode();
+      
+      assert!(option_return_values.is_some());
+
+      let return_values = option_return_values.unwrap();
+
+      assert_eq!(cpu.registers.a, 0xff);
+      assert_eq!(return_values.bytes, 2);
+      assert_eq!(return_values.clock_periods, 3);
+    }
+
 }

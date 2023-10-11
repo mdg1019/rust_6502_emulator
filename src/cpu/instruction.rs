@@ -5,6 +5,7 @@ pub enum AddressingMode {
   ZeroPageDirect,
 }
 
+#[derive(Debug)]
 pub struct ExecutionReturnValues {
   pub bytes: u8,
   pub clock_periods: u8,

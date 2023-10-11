@@ -10,13 +10,21 @@ use instruction::ExecutionReturnValues;
 
 const RESET_VECTOR: usize = 0xfffc;
 
-const INSTRUCTION_SET: [Instruction; 1] = [
+const INSTRUCTION_SET: [Instruction; 2] = [
   Instruction {
     opcode: 0xA5,
     mnemonic: "LDA",
     bytes: 2,
     clock_periods: 3,
     addressing_mode: AddressingMode::ZeroPageDirect,
+    execute: Cpu::lda_instruction,
+  },
+  Instruction {
+    opcode: 0xA9,
+    mnemonic: "LDA",
+    bytes: 2,
+    clock_periods: 2,
+    addressing_mode: AddressingMode::Immediate,
     execute: Cpu::lda_instruction,
   },
 ];
@@ -59,6 +67,7 @@ impl Cpu {
 
     let operand = match instruction.addressing_mode {
       AddressingMode::ZeroPageDirect => format!("${:02X}", self.memory.get_8_bit_value(location + 1)),
+      AddressingMode::Immediate => format!("#${:02X}", self.memory.get_8_bit_value(location + 1)),
     };
 
     let result = format!("{:04X} {:<8} {:<4} {}", 
@@ -75,6 +84,9 @@ impl Cpu {
 
   fn get_value(&self, instruction: Instruction) -> u8 {
     match instruction.addressing_mode {
+      AddressingMode::Immediate => {
+        self.memory.get_8_bit_value((self.registers.pc + 1) as usize)
+      },
       AddressingMode::ZeroPageDirect => {
         let operand = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
 
@@ -133,21 +145,50 @@ mod tests {
     fn test_a5_lda_zero_page_direct_instruction() {
       let mut cpu : Cpu = Cpu::new(0x8000);
       cpu.registers.a = 0x00;
+      cpu.registers.p.zero_flag = true;
+      cpu.registers.p.negative_flag = false;
       cpu.registers.pc = 0x8000;
 
       cpu.memory.memory[0x50] = 0xff;
       cpu.memory.memory[0x8000] = 0xa5;
       cpu.memory.memory[0x8001] = 0x50;
 
-      let mut option_return_values = cpu.execute_opcode();
+      let option_return_values = cpu.execute_opcode();
       
       assert!(option_return_values.is_some());
 
       let return_values = option_return_values.unwrap();
 
       assert_eq!(cpu.registers.a, 0xff);
+      assert!(!cpu.registers.p.zero_flag);
+      assert!(cpu.registers.p.negative_flag);
       assert_eq!(return_values.bytes, 2);
       assert_eq!(return_values.clock_periods, 3);
     }
+
+    #[test]
+    fn test_a9_lda_immediate_instruction() {
+      let mut cpu : Cpu = Cpu::new(0x8000);
+      cpu.registers.a = 0x00;
+      cpu.registers.p.zero_flag = true;
+      cpu.registers.p.negative_flag = false;
+      cpu.registers.pc = 0x8000;
+
+      cpu.memory.memory[0x8000] = 0xa9;
+      cpu.memory.memory[0x8001] = 0xff;
+
+      let option_return_values = cpu.execute_opcode();
+      
+      assert!(option_return_values.is_some());
+
+      let return_values = option_return_values.unwrap();
+
+      assert_eq!(cpu.registers.a, 0xff);
+      assert!(!cpu.registers.p.zero_flag);
+      assert!(cpu.registers.p.negative_flag);
+      assert_eq!(return_values.bytes, 2);
+      assert_eq!(return_values.clock_periods, 2);
+    }
+
 
 }

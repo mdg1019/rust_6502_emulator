@@ -190,13 +190,15 @@ impl Cpu {
   }
 
   pub fn set_overflow_flag(&mut self, a: u8, b: u8, result: u8) {
-    let sign_a = a & 0x80 != 0;
-    let sign_b = b & 0x80 != 0;
-    let sign_result = result & 0x80 != 0;
+    // Overflow occurs if both numbers have the same sign and 
+    // the result has a different sign.
 
-    println!("{:02X} {:02X} {:02X}", a, b, result);
+    // !(a ^ b) - 0x80 bit will be set if both signs are true.
+    // (a ^ result) - 0x80 bit will be set if result has a different sign.
 
-    self.registers.p.overflow_flag =  (sign_a && sign_b && !sign_result) || (!sign_a && !sign_b && sign_result);
+    // Based on a StackOverflow answer: https://stackoverflow.com/questions/29193303/6502-emulation-proper-way-to-implement-adc-and-sbc
+    
+    self.registers.p.overflow_flag =  (!(a ^ b) & (a ^ result) & 0x80) != 0;
   }
 
   pub fn crosses_boundary(address: u16, offset: u8) -> bool{
@@ -316,7 +318,6 @@ mod tests {
 
     assert!(!cpu.registers.p.overflow_flag);
   }
-  
 
   #[test]
   fn test_crosses_boundary_not_crossed() {

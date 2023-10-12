@@ -10,7 +10,7 @@ use instruction::ExecutionReturnValues;
 
 const RESET_VECTOR: usize = 0xfffc;
 
-const INSTRUCTION_SET: [Instruction; 7] = [
+const INSTRUCTION_SET: [Instruction; 8] = [
   Instruction {
     opcode: 0xA1,
     mnemonic: "LDA",
@@ -41,6 +41,14 @@ const INSTRUCTION_SET: [Instruction; 7] = [
     bytes: 3,
     clock_periods: 4,
     addressing_mode: AddressingMode::Absolute,
+    execute: Cpu::lda_instruction,
+  },
+  Instruction {
+    opcode: 0xB1,
+    mnemonic: "LDA",
+    bytes: 2,
+    clock_periods: 5,
+    addressing_mode: AddressingMode::PostIndexedIndirect,
     execute: Cpu::lda_instruction,
   },
   Instruction {
@@ -113,6 +121,7 @@ impl Cpu {
       AddressingMode::AbsoluteX => format!("${:04X},X", self.memory.get_16_bit_value(location + 1)),
       AddressingMode::AbsoluteY => format!("${:04X},Y", self.memory.get_16_bit_value(location + 1)),
       AddressingMode::PreIndexedIndirect => format!("(${:02X},X)", self.memory.get_8_bit_value(location + 1)),
+      AddressingMode::PostIndexedIndirect => format!("(${:02X}),Y", self.memory.get_8_bit_value(location + 1)),
     };
 
     let result = format!("{:04X} {:<8} {:<4} {}", 
@@ -162,6 +171,12 @@ impl Cpu {
         let address = self.memory.get_16_bit_value(indirect_address);
 
         (self.memory.get_8_bit_value(address as usize), false)
+      },
+      AddressingMode::PostIndexedIndirect => {
+        let indirect_address = self.memory.get_8_bit_value((self.registers.pc + 1) as usize) as usize;
+        let address = self.memory.get_16_bit_value(indirect_address);
+
+        (self.memory.get_8_bit_value(address as usize + self.registers.y as usize), Cpu::crosses_boundary(address, self.registers.y))
       },
     }
   }
@@ -419,6 +434,35 @@ mod tests {
     assert!(cpu.registers.p.negative_flag);
     assert_eq!(return_values.bytes, 2);
     assert_eq!(return_values.clock_periods, 6);
+  }
+  
+  #[test]
+  fn test_ad_lda_post_indexed_indirect_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+
+    cpu.registers.a = 0x00;
+    cpu.registers.y = 0x10;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x0070] = 0x43;
+    cpu.memory.memory[0x0071] = 0x35;
+    cpu.memory.memory[0x3553] = 0xff;
+    cpu.memory.memory[0x8000] = 0xb1;
+    cpu.memory.memory[0x8001] = 0x70;
+
+    let option_return_values = cpu.execute_opcode();
+
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0xff);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 5);
   }
 
   

@@ -181,16 +181,59 @@ impl Cpu {
     }
   }
 
-  pub fn set_zero_flag(&mut self) {
-    self.registers.p.zero_flag = self.registers.a == 0;
+  pub fn set_zero_flag(&mut self, value: u8) {
+    self.registers.p.zero_flag = value == 0;
   }
 
-  pub fn set_negative_flag(&mut self) {
-    self.registers.p.negative_flag = self.registers.a & 0x80 != 0;
+  pub fn set_negative_flag(&mut self, value: u8) {
+    self.registers.p.negative_flag = value & 0x80 != 0;
+  }
+
+  pub fn set_overflow_flag(&mut self, a: u8, b: u8, result: u8) {
+    let sign_a = a & 0x80 != 0;
+    let sign_b = b & 0x80 != 0;
+    let sign_result = result & 0x80 != 0;
+
+    println!("{:02X} {:02X} {:02X}", a, b, result);
+
+    self.registers.p.overflow_flag =  (sign_a && sign_b && !sign_result) || (!sign_a && !sign_b && sign_result);
   }
 
   pub fn crosses_boundary(address: u16, offset: u8) -> bool{
     address >> 8 != (address + offset as u16) >> 8
+  }
+
+  pub fn adc_instruction(&mut self, instruction: Instruction) -> Option<ExecutionReturnValues> {
+    let (value, crossed_boundary) = self.get_value(instruction);
+
+    let carry = match self.registers.p.carry_flag {
+      true => 1 as u16,
+      false => 0 as u16,
+    };
+
+    let mut result = self.registers.a as u16 + value as u16 + carry;
+
+    if self.registers.p.decimal_flag {
+      if (self.registers.a & 0x0f) + (value & 0x0F) + carry as u8 > 9 {
+        result += 6;
+      }
+
+      if result > 0x99 {
+        result += 96;
+      }
+    }
+
+    self.set_zero_flag(result as u8);
+    self.set_negative_flag(result as u8);
+    self.set_overflow_flag(self.registers.a, value, result as u8);
+    //self.set_carry_flag(result);
+
+    let clock_periods = match crossed_boundary {
+      true => instruction.clock_periods + 1,
+      false => instruction.clock_periods,
+    };
+
+    Some(ExecutionReturnValues { bytes: instruction.bytes, clock_periods: clock_periods })
   }
 
   pub fn lda_instruction(&mut self, instruction: Instruction) -> Option<ExecutionReturnValues> {
@@ -198,8 +241,8 @@ impl Cpu {
 
     self.registers.a = value;
 
-    self.set_zero_flag();
-    self.set_negative_flag();
+    self.set_zero_flag(self.registers.a);
+    self.set_negative_flag(self.registers.a);
 
     let clock_periods = match crossed_boundary {
       true => instruction.clock_periods + 1,
@@ -218,9 +261,8 @@ mod tests {
   fn test_set_zero_flag_when_not_zero() {
     let mut cpu: Cpu = Cpu::new(0x8000);
     cpu.registers.p.zero_flag = true;
-    cpu.registers.a = 0xff;
 
-    cpu.set_zero_flag();
+    cpu.set_zero_flag(0xff);
 
     assert!(!cpu.registers.p.zero_flag);
   }
@@ -229,12 +271,52 @@ mod tests {
   fn test_set_zero_flag_when_zero() {
     let mut cpu: Cpu = Cpu::new(0x8000);
     cpu.registers.p.zero_flag = false;
-    cpu.registers.a = 0x00;
 
-    cpu.set_zero_flag();
+    cpu.set_zero_flag(0x00);
 
     assert!(cpu.registers.p.zero_flag);
   }
+
+  #[test]
+  fn test_set_overflow_flag_when_two_positives_results_in_a_negative() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.p.overflow_flag = false;
+    
+    cpu.set_overflow_flag(0x7f, 0x01, (0x7f + 0x01) as u16 as u8);
+
+    assert!(cpu.registers.p.overflow_flag);
+  }
+
+  #[test]
+  fn test_set_overflow_flag_when_two_positives_results_in_a_positive() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.p.overflow_flag = false;
+    
+    cpu.set_overflow_flag(0x7e, 0x01, (0x7e + 0x01) as u16 as u8);
+
+    assert!(!cpu.registers.p.overflow_flag);
+  }
+
+  #[test]
+  fn test_set_overflow_flag_when_two_negatives_results_in_a_positive() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.p.overflow_flag = false;
+    
+    cpu.set_overflow_flag(0x80, 0xff, (0x80 + 0xff) as u16 as u8);
+
+    assert!(cpu.registers.p.overflow_flag);
+  }
+
+  #[test]
+  fn test_set_overflow_flag_when_two_negatives_results_in_a_negative() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.p.overflow_flag = false;
+    
+    cpu.set_overflow_flag(0x81, 0xff, (0x81 + 0xff) as u16 as u8);
+
+    assert!(!cpu.registers.p.overflow_flag);
+  }
+  
 
   #[test]
   fn test_crosses_boundary_not_crossed() {

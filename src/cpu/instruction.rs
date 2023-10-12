@@ -5,6 +5,7 @@ pub enum AddressingMode {
   Immediate,
   ZeroPageDirect,
   ZeroPageX,
+  Absolute,
 }
 
 #[derive(Debug)]

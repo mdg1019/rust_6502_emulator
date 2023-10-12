@@ -10,7 +10,7 @@ use instruction::ExecutionReturnValues;
 
 const RESET_VECTOR: usize = 0xfffc;
 
-const INSTRUCTION_SET: [Instruction; 2] = [
+const INSTRUCTION_SET: [Instruction; 3] = [
   Instruction {
     opcode: 0xA5,
     mnemonic: "LDA",
@@ -25,6 +25,14 @@ const INSTRUCTION_SET: [Instruction; 2] = [
     bytes: 2,
     clock_periods: 2,
     addressing_mode: AddressingMode::Immediate,
+    execute: Cpu::lda_instruction,
+  },
+  Instruction {
+    opcode: 0xB5,
+    mnemonic: "LDA",
+    bytes: 2,
+    clock_periods: 4,
+    addressing_mode: AddressingMode::ZeroPageX,
     execute: Cpu::lda_instruction,
   },
 ];
@@ -68,6 +76,7 @@ impl Cpu {
     let operand = match instruction.addressing_mode {
       AddressingMode::ZeroPageDirect => format!("${:02X}", self.memory.get_8_bit_value(location + 1)),
       AddressingMode::Immediate => format!("#${:02X}", self.memory.get_8_bit_value(location + 1)),
+      AddressingMode::ZeroPageX => format!("${:02X},X", self.memory.get_8_bit_value(location + 1)),
     };
 
     let result = format!("{:04X} {:<8} {:<4} {}", 
@@ -88,9 +97,14 @@ impl Cpu {
         self.memory.get_8_bit_value((self.registers.pc + 1) as usize)
       },
       AddressingMode::ZeroPageDirect => {
-        let operand = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
+        let zero_page_offset = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
 
-        self.memory.get_8_bit_value(operand as usize)
+        self.memory.get_8_bit_value(zero_page_offset as usize)
+      },
+      AddressingMode::ZeroPageX => {
+        let zero_page_offset = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
+
+        self.memory.get_8_bit_value(zero_page_offset as usize + self.registers.x as usize)
       },
     }
   }
@@ -144,6 +158,7 @@ mod tests {
     #[test]
     fn test_a5_lda_zero_page_direct_instruction() {
       let mut cpu : Cpu = Cpu::new(0x8000);
+
       cpu.registers.a = 0x00;
       cpu.registers.p.zero_flag = true;
       cpu.registers.p.negative_flag = false;
@@ -169,6 +184,7 @@ mod tests {
     #[test]
     fn test_a9_lda_immediate_instruction() {
       let mut cpu : Cpu = Cpu::new(0x8000);
+
       cpu.registers.a = 0x00;
       cpu.registers.p.zero_flag = true;
       cpu.registers.p.negative_flag = false;
@@ -188,6 +204,33 @@ mod tests {
       assert!(cpu.registers.p.negative_flag);
       assert_eq!(return_values.bytes, 2);
       assert_eq!(return_values.clock_periods, 2);
+    }
+
+    #[test]
+    fn test_b5_lda_zero_page_x_instruction() {
+      let mut cpu : Cpu = Cpu::new(0x8000);
+
+      cpu.registers.a = 0xff;
+      cpu.registers.x = 0x02;
+      cpu.registers.p.zero_flag = false;
+      cpu.registers.p.negative_flag = true;
+      cpu.registers.pc = 0x8000;
+
+      cpu.memory.memory[0x32] = 0x00;
+      cpu.memory.memory[0x8000] = 0xb5;
+      cpu.memory.memory[0x8001] = 0x30;
+
+      let option_return_values = cpu.execute_opcode();
+
+      assert!(option_return_values.is_some());
+
+      let return_values = option_return_values.unwrap();
+
+      assert_eq!(cpu.registers.a, 0x00);
+      assert!(cpu.registers.p.zero_flag);
+      assert!(!cpu.registers.p.negative_flag);
+      assert_eq!(return_values.bytes, 2);
+      assert_eq!(return_values.clock_periods, 4);
     }
 
 

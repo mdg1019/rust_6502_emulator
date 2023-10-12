@@ -4,6 +4,7 @@ use super::Cpu;
 pub enum AddressingMode {
   Immediate,
   ZeroPageDirect,
+  ZeroPageX,
 }
 
 #[derive(Debug)]

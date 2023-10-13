@@ -10,7 +10,15 @@ use instruction::ExecutionReturnValues;
 
 const RESET_VECTOR: usize = 0xfffc;
 
-const INSTRUCTION_SET: [Instruction; 8] = [
+const INSTRUCTION_SET: [Instruction; 9] = [
+  Instruction {
+    opcode: 0x69,
+    mnemonic: "ADC",
+    bytes: 2,
+    clock_periods: 2,
+    addressing_mode: AddressingMode::Immediate,
+    execute: Cpu::adc_instruction,
+  },
   Instruction {
     opcode: 0xA1,
     mnemonic: "LDA",
@@ -201,6 +209,10 @@ impl Cpu {
     self.registers.p.overflow_flag =  (!(a ^ b) & (a ^ result) & 0x80) != 0;
   }
 
+  pub fn set_carry_flag(&mut self, result: u16) {
+    self.registers.p.carry_flag = result > 0xff;
+  }
+
   pub fn crosses_boundary(address: u16, offset: u8) -> bool{
     address >> 8 != (address + offset as u16) >> 8
   }
@@ -228,7 +240,9 @@ impl Cpu {
     self.set_zero_flag(result as u8);
     self.set_negative_flag(result as u8);
     self.set_overflow_flag(self.registers.a, value, result as u8);
-    //self.set_carry_flag(result);
+    self.set_carry_flag(result);
+
+    self.registers.a = result as u8;
 
     let clock_periods = match crossed_boundary {
       true => instruction.clock_periods + 1,
@@ -320,6 +334,26 @@ mod tests {
   }
 
   #[test]
+  fn test_set_carry_flag_when_no_carry() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.p.carry_flag = true;
+
+    cpu.set_carry_flag(0x00ff);
+
+    assert!(!cpu.registers.p.carry_flag);
+  }
+
+  #[test]
+  fn test_set_carry_flag_when_carry() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.p.carry_flag = false;
+
+    cpu.set_carry_flag(0x0100);
+
+    assert!(cpu.registers.p.carry_flag);
+  }
+
+  #[test]
   fn test_crosses_boundary_not_crossed() {
     assert!(!Cpu::crosses_boundary(0x1ffe, 0x01));
   }
@@ -327,6 +361,34 @@ mod tests {
   #[test]
   fn test_crosses_boundary_crossed() {
     assert!(Cpu::crosses_boundary(0x1fff, 0x01));
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x99;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0x99;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x32);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
   }
 
   #[test]

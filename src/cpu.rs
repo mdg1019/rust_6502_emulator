@@ -274,8 +274,6 @@ impl Cpu {
 
     let mut result = (self.registers.a as u16).wrapping_sub(value as u16 + carry);
 
-    println!("{:04X}", result);
-
     if self.registers.p.decimal_flag {
       if (self.registers.a & 0x0f) < (value & 0x0f) + carry as u8 {
         result -= 6;
@@ -285,8 +283,6 @@ impl Cpu {
         result -= 96;
       }
     }
-
-    println!("{:04X}", result);
 
     self.set_zero_flag(result as u8);
     self.set_negative_flag(result as u8);
@@ -437,6 +433,202 @@ mod tests {
     assert!(!cpu.registers.p.zero_flag);
     assert!(!cpu.registers.p.negative_flag);
     assert!(cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction_with_carry_set_adds_correctly() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0xff;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = true;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0x01;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x01);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction_should_set_carry() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0xff;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0x01;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x00);
+    assert!(cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction_should_not_set_carry() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0xfe;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0x01;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0xff);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction_should_overflow_1() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x7f; // 127d
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0x01; // 127d + 1d = 128d, which is an overflow.
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x80);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert!(cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction_should_not_overflow_1() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x7e; // 126 decimal
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0x01; // 126d + 1d = 127d, which is not an overflow.
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x7f);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction_should_overflow_2() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x81; // -127
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0xfe; // -127d + -2d = -129d, which is an overflow.
+
+    let option_return_values = cpu.execute_opcode();  
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x7f);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_69_adc_immediate_instruction_should_not_overflow_2() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x81; // -127 decimal
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0x69;
+    cpu.memory.memory[0x8001] = 0xff; // -127d + -1d = -128d, which is not an overflow.
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x80);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
     assert!(cpu.registers.p.carry_flag);
     assert_eq!(return_values.bytes, 2);
     assert_eq!(return_values.clock_periods, 2);
@@ -661,12 +853,10 @@ mod tests {
     assert_eq!(return_values.clock_periods, 5);
   }
 
-
-
   #[test]
   fn test_e9_sbc_immediate_instruction() {
     let mut cpu: Cpu = Cpu::new(0x8000);
-    cpu.registers.a = 0x10;
+    cpu.registers.a = 0x80;
     cpu.registers.p.zero_flag = true;
     cpu.registers.p.negative_flag = true;
     cpu.registers.p.overflow_flag = false;
@@ -674,23 +864,189 @@ mod tests {
     cpu.registers.pc = 0x8000;
 
     cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0x99;
+    cpu.memory.memory[0x8001] = 0x02;
 
     let option_return_values = cpu.execute_opcode();
-
-    println!("{}", cpu.registers.to_string());
     
-    // assert!(option_return_values.is_some());
+    assert!(option_return_values.is_some());
 
-    // let return_values = option_return_values.unwrap();
+    let return_values = option_return_values.unwrap();
 
-    // assert_eq!(cpu.registers.a, 0x32);
-    // assert!(!cpu.registers.p.zero_flag);
-    // assert!(!cpu.registers.p.negative_flag);
-    // assert!(cpu.registers.p.overflow_flag);
-    // assert!(cpu.registers.p.carry_flag);
-    // assert_eq!(return_values.bytes, 2);
-    // assert_eq!(return_values.clock_periods, 2);
+    assert_eq!(cpu.registers.a, 0x7e);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag); // no borrow
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_e9_sbc_immediate_instruction_with_borrow() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x80;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0xe9;
+    cpu.memory.memory[0x8001] = 0x02;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x7d);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag); // no borrow
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_e9_sbc_immediate_instruction_sets_borrow() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x04;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = true;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0xe9;
+    cpu.memory.memory[0x8001] = 0x0a;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0xfa);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag); // no borrow
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_e9_sbc_immediate_instruction_should_overflow_1() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x80; // -128d
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = true;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0xe9;
+    cpu.memory.memory[0x8001] = 0x01; // -128d - 1d = -129d, which is an overflow
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x7f);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag); // no borrow
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_e9_sbc_immediate_instruction_should_not_overflow_1() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x80; // -128d
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = true;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0xe9;
+    cpu.memory.memory[0x8001] = 0x00; // -128d - 0d = -128d, which is not an overflow
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x80);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag); // no borrow
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_e9_sbc_immediate_instruction_should_overflow_2() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x7f; // 128d
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = true;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0xe9;
+    cpu.memory.memory[0x8001] = 0xff; // 127d - -1d = 128d, which is an overflow
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x80);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert!(cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag); // borrow
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_e9_sbc_immediate_instruction_should_not_overflow_2() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x7f; // 127d
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = true;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0xe9;
+    cpu.memory.memory[0x8001] = 0x00; // 127d - 0d = 127d, which is not an overflow
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x7f);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(cpu.registers.p.carry_flag); // no borrow
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
   }
 
   

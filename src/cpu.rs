@@ -10,10 +10,14 @@ use instruction::ExecutionReturnValues;
 
 const RESET_VECTOR: usize = 0xfffc;
 
-const INSTRUCTION_SET: [Instruction; 9] = [
+const ADC_INSTRUCTION: &str = "ADC";
+const LDA_INSTRUCTION: &str = "LDA";
+const SBC_INSTRUCTION: &str = "SBC";
+
+const INSTRUCTION_SET: [Instruction; 10] = [
   Instruction {
     opcode: 0x69,
-    mnemonic: "ADC",
+    mnemonic: ADC_INSTRUCTION,
     bytes: 2,
     clock_periods: 2,
     addressing_mode: AddressingMode::Immediate,
@@ -21,7 +25,7 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xA1,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 6,
     addressing_mode: AddressingMode::PreIndexedIndirect,
@@ -29,7 +33,7 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xA5,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 3,
     addressing_mode: AddressingMode::ZeroPageDirect,
@@ -37,7 +41,7 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xA9,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 2,
     addressing_mode: AddressingMode::Immediate,
@@ -45,7 +49,7 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xAD,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 3,
     clock_periods: 4,
     addressing_mode: AddressingMode::Absolute,
@@ -53,7 +57,7 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xB1,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 5,
     addressing_mode: AddressingMode::PostIndexedIndirect,
@@ -61,7 +65,7 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xB5,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 4,
     addressing_mode: AddressingMode::ZeroPageX,
@@ -69,7 +73,7 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xB9,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 3,
     clock_periods: 4,
     addressing_mode: AddressingMode::AbsoluteY,
@@ -77,11 +81,19 @@ const INSTRUCTION_SET: [Instruction; 9] = [
   },
   Instruction {
     opcode: 0xBD,
-    mnemonic: "LDA",
+    mnemonic: LDA_INSTRUCTION,
     bytes: 3,
     clock_periods: 4,
     addressing_mode: AddressingMode::AbsoluteX,
     execute: Cpu::lda_instruction,
+  },
+  Instruction {
+    opcode: 0xE9,
+    mnemonic: "SBC",
+    bytes: 2,
+    clock_periods: 2,
+    addressing_mode: AddressingMode::Immediate,
+    execute: Cpu::sbc_instruction,
   },
 ];
 
@@ -221,8 +233,8 @@ impl Cpu {
     let (value, crossed_boundary) = self.get_value(instruction);
 
     let carry = match self.registers.p.carry_flag {
-      true => 1 as u16,
-      false => 0 as u16,
+      true => 1u16,
+      false => 0u16,
     };
 
     let mut result = self.registers.a as u16 + value as u16 + carry;
@@ -241,6 +253,45 @@ impl Cpu {
     self.set_negative_flag(result as u8);
     self.set_overflow_flag(self.registers.a, value, result as u8);
     self.set_carry_flag(result);
+
+    self.registers.a = result as u8;
+
+    let clock_periods = match crossed_boundary {
+      true => instruction.clock_periods + 1,
+      false => instruction.clock_periods,
+    };
+
+    Some(ExecutionReturnValues { bytes: instruction.bytes, clock_periods: clock_periods })
+  }
+
+  pub fn sbc_instruction(&mut self, instruction: Instruction) -> Option<ExecutionReturnValues> {
+    let (value, crossed_boundary) = self.get_value(instruction);
+  
+    let carry = match self.registers.p.carry_flag {
+      true => 0u16,
+      false => 1u16,
+    };
+
+    let mut result = (self.registers.a as u16).wrapping_sub(value as u16 + carry);
+
+    println!("{:04X}", result);
+
+    if self.registers.p.decimal_flag {
+      if (self.registers.a & 0x0f) < (value & 0x0f) + carry as u8 {
+        result -= 6;
+      }
+
+      if result & 0xFF > 0x99 {
+        result -= 96;
+      }
+    }
+
+    println!("{:04X}", result);
+
+    self.set_zero_flag(result as u8);
+    self.set_negative_flag(result as u8);
+    self.set_overflow_flag(self.registers.a, !value, result as u8);
+    self.registers.p.carry_flag = !((self.registers.a as u16) < (value as u16 + carry));
 
     self.registers.a = result as u8;
 
@@ -608,6 +659,38 @@ mod tests {
     assert!(cpu.registers.p.negative_flag);
     assert_eq!(return_values.bytes, 2);
     assert_eq!(return_values.clock_periods, 5);
+  }
+
+
+
+  #[test]
+  fn test_e9_sbc_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x10;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = true;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = true;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x8000] = 0xe9;
+    cpu.memory.memory[0x8001] = 0x99;
+
+    let option_return_values = cpu.execute_opcode();
+
+    println!("{}", cpu.registers.to_string());
+    
+    // assert!(option_return_values.is_some());
+
+    // let return_values = option_return_values.unwrap();
+
+    // assert_eq!(cpu.registers.a, 0x32);
+    // assert!(!cpu.registers.p.zero_flag);
+    // assert!(!cpu.registers.p.negative_flag);
+    // assert!(cpu.registers.p.overflow_flag);
+    // assert!(cpu.registers.p.carry_flag);
+    // assert_eq!(return_values.bytes, 2);
+    // assert_eq!(return_values.clock_periods, 2);
   }
 
   

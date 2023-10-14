@@ -14,7 +14,7 @@ const ADC_INSTRUCTION: &str = "ADC";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 
-const INSTRUCTION_SET: [Instruction; 13] = [
+const INSTRUCTION_SET: [Instruction; 14] = [
   Instruction {
     opcode: 0x65,
     mnemonic: ADC_INSTRUCTION,
@@ -45,6 +45,14 @@ const INSTRUCTION_SET: [Instruction; 13] = [
     bytes: 2,
     clock_periods: 4,
     addressing_mode: AddressingMode::ZeroPageX,
+    execute: Cpu::adc_instruction,
+  },
+  Instruction {
+    opcode: 0x7D,
+    mnemonic: ADC_INSTRUCTION,
+    bytes: 3,
+    clock_periods: 4,
+    addressing_mode: AddressingMode::AbsoluteX,
     execute: Cpu::adc_instruction,
   },
   Instruction {
@@ -113,7 +121,7 @@ const INSTRUCTION_SET: [Instruction; 13] = [
   },
   Instruction {
     opcode: 0xE9,
-    mnemonic: "SBC",
+    mnemonic: SBC_INSTRUCTION,
     bytes: 2,
     clock_periods: 2,
     addressing_mode: AddressingMode::Immediate,
@@ -746,6 +754,38 @@ mod tests {
     assert_eq!(return_values.bytes, 2);
     assert_eq!(return_values.clock_periods, 4);
   }
+  
+  #[test]
+  fn test_7d_adc_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x40;
+    cpu.registers.x = 0x03;
+    cpu.registers.p.zero_flag = false;
+    cpu.registers.p.negative_flag = false;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x3003] = 0x20;
+    cpu.memory.memory[0x8000] = 0x7d;
+    cpu.memory.memory[0x8001] = 0x00;
+    cpu.memory.memory[0x8002] = 0x30;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x60);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 3);
+    assert_eq!(return_values.clock_periods, 4);
+  }
+
 
   #[test]
   fn test_a5_lda_zero_page_direct_instruction() {

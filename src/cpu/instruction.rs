@@ -3,7 +3,7 @@ use super::Cpu;
 #[derive(Copy, Clone)]
 pub enum AddressingMode {
   Immediate,
-  ZeroPageDirect,
+  ZeroPage,
   ZeroPageX,
   Absolute,
   AbsoluteX,

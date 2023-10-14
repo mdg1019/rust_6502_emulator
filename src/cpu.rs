@@ -14,13 +14,29 @@ const ADC_INSTRUCTION: &str = "ADC";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 
-const INSTRUCTION_SET: [Instruction; 10] = [
+const INSTRUCTION_SET: [Instruction; 12] = [
+  Instruction {
+    opcode: 0x65,
+    mnemonic: ADC_INSTRUCTION,
+    bytes: 2,
+    clock_periods: 3,
+    addressing_mode: AddressingMode::ZeroPage,
+    execute: Cpu::adc_instruction,
+  },
   Instruction {
     opcode: 0x69,
     mnemonic: ADC_INSTRUCTION,
     bytes: 2,
     clock_periods: 2,
     addressing_mode: AddressingMode::Immediate,
+    execute: Cpu::adc_instruction,
+  },
+  Instruction {
+    opcode: 0x75,
+    mnemonic: ADC_INSTRUCTION,
+    bytes: 2,
+    clock_periods: 4,
+    addressing_mode: AddressingMode::ZeroPageX,
     execute: Cpu::adc_instruction,
   },
   Instruction {
@@ -36,7 +52,7 @@ const INSTRUCTION_SET: [Instruction; 10] = [
     mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 3,
-    addressing_mode: AddressingMode::ZeroPageDirect,
+    addressing_mode: AddressingMode::ZeroPage,
     execute: Cpu::lda_instruction,
   },
   Instruction {
@@ -134,7 +150,7 @@ impl Cpu {
     }
 
     let operand = match instruction.addressing_mode {
-      AddressingMode::ZeroPageDirect => format!("${:02X}", self.memory.get_8_bit_value(location + 1)),
+      AddressingMode::ZeroPage => format!("${:02X}", self.memory.get_8_bit_value(location + 1)),
       AddressingMode::Immediate => format!("#${:02X}", self.memory.get_8_bit_value(location + 1)),
       AddressingMode::ZeroPageX => format!("${:02X},X", self.memory.get_8_bit_value(location + 1)),
       AddressingMode::Absolute => format!("${:04X}", self.memory.get_16_bit_value(location + 1)),
@@ -161,7 +177,7 @@ impl Cpu {
       AddressingMode::Immediate => {
         (self.memory.get_8_bit_value((self.registers.pc + 1) as usize), false)
       },
-      AddressingMode::ZeroPageDirect => {
+      AddressingMode::ZeroPage => {
         let zero_page_offset = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
 
         (self.memory.get_8_bit_value(zero_page_offset as usize), false)
@@ -287,7 +303,7 @@ impl Cpu {
     self.set_zero_flag(result as u8);
     self.set_negative_flag(result as u8);
     self.set_overflow_flag(self.registers.a, !value, result as u8);
-    self.registers.p.carry_flag = !((self.registers.a as u16) < (value as u16 + carry));
+    self.set_carry_flag(!result);
 
     self.registers.a = result as u8;
 
@@ -408,6 +424,35 @@ mod tests {
   #[test]
   fn test_crosses_boundary_crossed() {
     assert!(Cpu::crosses_boundary(0x1fff, 0x01));
+  }
+
+  #[test]
+  fn test_65_adc_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x40;
+    cpu.registers.p.zero_flag = false;
+    cpu.registers.p.negative_flag = false;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x0030] = 0x20;
+    cpu.memory.memory[0x8000] = 0x65;
+    cpu.memory.memory[0x8001] = 0x30;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x60);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 3);
   }
 
   #[test]
@@ -632,6 +677,36 @@ mod tests {
     assert!(cpu.registers.p.carry_flag);
     assert_eq!(return_values.bytes, 2);
     assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
+  fn test_75_adc_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x40;
+    cpu.registers.x = 0x03;
+    cpu.registers.p.zero_flag = false;
+    cpu.registers.p.negative_flag = false;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x0033] = 0x20;
+    cpu.memory.memory[0x8000] = 0x75;
+    cpu.memory.memory[0x8001] = 0x30;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x60);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 4);
   }
 
   #[test]

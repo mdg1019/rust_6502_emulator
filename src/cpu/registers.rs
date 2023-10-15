@@ -1,4 +1,3 @@
-
 mod status_flags;
 
 use status_flags::StatusFlags;
@@ -25,12 +24,11 @@ impl Registers {
     }
 
     pub fn to_string(&self) -> String {
-        format!("A: {:02X}\r\n", self.a) +
-        &format!("X: {:02X}\r\n", self.x) +
-        &format!("Y: {:02X}\r\n", self.y) +
-        &format!("P: {:02X} {}\r\n", 
-            self.p.to_byte(), self.p.to_string()) +
-        &format!("SP: {:02X}\r\n", self.sp) +
-        &format!("PC: {:04X}", self.pc)  
+        format!("A: {:02X}\r\n", self.a)
+            + &format!("X: {:02X}\r\n", self.x)
+            + &format!("Y: {:02X}\r\n", self.y)
+            + &format!("P: {:02X} {}\r\n", self.p.to_byte(), self.p.to_string())
+            + &format!("SP: {:02X}\r\n", self.sp)
+            + &format!("PC: {:04X}", self.pc)
     }
 }

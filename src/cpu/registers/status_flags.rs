@@ -80,32 +80,33 @@ impl StatusFlags {
         match self.negative_flag {
             true => "N",
             false => "-",
-        }.to_string() +
-        match self.overflow_flag {
-            true => "O",
-            false => "-"
-        } +
-        "1" + 
-        match self.break_flag {
-            true => "B",
-            false => "-"
-        } +
-        match self.decimal_flag {
-            true => "D",
-            false => "-"
-        } +
-        match self.interrupt_disable_flag {
-            true => "I",
-            false => "-"
-        } +
-        match self.zero_flag {
-            true => "Z",
-            false => "-"
-        } +              
-        match self.carry_flag {
-            true => "C",
-            false => "-",
         }
+        .to_string()
+            + match self.overflow_flag {
+                true => "O",
+                false => "-",
+            }
+            + "1"
+            + match self.break_flag {
+                true => "B",
+                false => "-",
+            }
+            + match self.decimal_flag {
+                true => "D",
+                false => "-",
+            }
+            + match self.interrupt_disable_flag {
+                true => "I",
+                false => "-",
+            }
+            + match self.zero_flag {
+                true => "Z",
+                false => "-",
+            }
+            + match self.carry_flag {
+                true => "C",
+                false => "-",
+            }
     }
 }
 
@@ -269,7 +270,7 @@ mod tests {
         status_flags.carry_flag = true;
         status_flags.from_byte(!CARRY_FLAG);
 
-        assert!(!status_flags.carry_flag);  
+        assert!(!status_flags.carry_flag);
     }
 
     #[test]
@@ -278,7 +279,7 @@ mod tests {
 
         status_flags.from_byte(CARRY_FLAG);
 
-        assert!(status_flags.carry_flag);  
+        assert!(status_flags.carry_flag);
     }
 
     #[test]
@@ -288,7 +289,7 @@ mod tests {
         status_flags.zero_flag = true;
         status_flags.from_byte(!ZERO_FLAG);
 
-        assert!(!status_flags.zero_flag);  
+        assert!(!status_flags.zero_flag);
     }
 
     #[test]
@@ -297,7 +298,7 @@ mod tests {
 
         status_flags.from_byte(ZERO_FLAG);
 
-        assert!(status_flags.zero_flag);  
+        assert!(status_flags.zero_flag);
     }
 
     #[test]
@@ -307,7 +308,7 @@ mod tests {
         status_flags.interrupt_disable_flag = true;
         status_flags.from_byte(!INTERRUPT_FLAG);
 
-        assert!(!status_flags.interrupt_disable_flag);  
+        assert!(!status_flags.interrupt_disable_flag);
     }
 
     #[test]
@@ -316,7 +317,7 @@ mod tests {
 
         status_flags.from_byte(INTERRUPT_FLAG);
 
-        assert!(status_flags.interrupt_disable_flag);  
+        assert!(status_flags.interrupt_disable_flag);
     }
 
     #[test]
@@ -326,7 +327,7 @@ mod tests {
         status_flags.decimal_flag = true;
         status_flags.from_byte(!DECIMAL_FLAG);
 
-        assert!(!status_flags.decimal_flag);  
+        assert!(!status_flags.decimal_flag);
     }
 
     #[test]
@@ -335,7 +336,7 @@ mod tests {
 
         status_flags.from_byte(DECIMAL_FLAG);
 
-        assert!(status_flags.decimal_flag);  
+        assert!(status_flags.decimal_flag);
     }
 
     #[test]
@@ -345,7 +346,7 @@ mod tests {
         status_flags.break_flag = true;
         status_flags.from_byte(!BREAK_FLAG);
 
-        assert!(!status_flags.break_flag);  
+        assert!(!status_flags.break_flag);
     }
 
     #[test]
@@ -354,7 +355,7 @@ mod tests {
 
         status_flags.from_byte(BREAK_FLAG);
 
-        assert!(status_flags.break_flag);  
+        assert!(status_flags.break_flag);
     }
 
     #[test]
@@ -364,7 +365,7 @@ mod tests {
         status_flags.overflow_flag = true;
         status_flags.from_byte(!OVERFLOW_FLAG);
 
-        assert!(!status_flags.overflow_flag);  
+        assert!(!status_flags.overflow_flag);
     }
 
     #[test]
@@ -373,7 +374,7 @@ mod tests {
 
         status_flags.from_byte(OVERFLOW_FLAG);
 
-        assert!(status_flags.overflow_flag);  
+        assert!(status_flags.overflow_flag);
     }
 
     #[test]
@@ -383,7 +384,7 @@ mod tests {
         status_flags.negative_flag = true;
         status_flags.from_byte(!NEGATIVE_FLAG);
 
-        assert!(!status_flags.negative_flag);  
+        assert!(!status_flags.negative_flag);
     }
 
     #[test]
@@ -392,7 +393,7 @@ mod tests {
 
         status_flags.from_byte(NEGATIVE_FLAG);
 
-        assert!(status_flags.negative_flag);  
+        assert!(status_flags.negative_flag);
     }
 
     #[test]

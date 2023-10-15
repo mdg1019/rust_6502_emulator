@@ -8,8 +8,8 @@ pub enum AddressingMode {
   Absolute,
   AbsoluteX,
   AbsoluteY,
-  PreIndexedIndirect, // (Zero-Page,X)
-  PostIndexedIndirect, // (Zero-Page),Y
+  IndirectX, // (Zero-Page,X)
+  IndirectY, // (Zero-Page),Y
 }
 
 #[derive(Debug)]

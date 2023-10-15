@@ -14,7 +14,15 @@ const ADC_INSTRUCTION: &str = "ADC";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 
-const INSTRUCTION_SET: [Instruction; 15] = [
+const INSTRUCTION_SET: [Instruction; 17] = [
+  Instruction {
+    opcode: 0x61,
+    mnemonic: ADC_INSTRUCTION,
+    bytes: 2,
+    clock_periods: 6,
+    addressing_mode: AddressingMode::IndirectX,
+    execute: Cpu::adc_instruction,
+  },
   Instruction {
     opcode: 0x65,
     mnemonic: ADC_INSTRUCTION,
@@ -37,6 +45,14 @@ const INSTRUCTION_SET: [Instruction; 15] = [
     bytes: 3,
     clock_periods: 4,
     addressing_mode: AddressingMode::Absolute,
+    execute: Cpu::adc_instruction,
+  },
+  Instruction {
+    opcode: 0x71,
+    mnemonic: ADC_INSTRUCTION,
+    bytes: 2,
+    clock_periods: 5,
+    addressing_mode: AddressingMode::IndirectY,
     execute: Cpu::adc_instruction,
   },
   Instruction {
@@ -68,7 +84,7 @@ const INSTRUCTION_SET: [Instruction; 15] = [
     mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 6,
-    addressing_mode: AddressingMode::PreIndexedIndirect,
+    addressing_mode: AddressingMode::IndirectX,
     execute: Cpu::lda_instruction,
   },
   Instruction {
@@ -100,7 +116,7 @@ const INSTRUCTION_SET: [Instruction; 15] = [
     mnemonic: LDA_INSTRUCTION,
     bytes: 2,
     clock_periods: 5,
-    addressing_mode: AddressingMode::PostIndexedIndirect,
+    addressing_mode: AddressingMode::IndirectY,
     execute: Cpu::lda_instruction,
   },
   Instruction {
@@ -180,8 +196,8 @@ impl Cpu {
       AddressingMode::Absolute => format!("${:04X}", self.memory.get_16_bit_value(location + 1)),
       AddressingMode::AbsoluteX => format!("${:04X},X", self.memory.get_16_bit_value(location + 1)),
       AddressingMode::AbsoluteY => format!("${:04X},Y", self.memory.get_16_bit_value(location + 1)),
-      AddressingMode::PreIndexedIndirect => format!("(${:02X},X)", self.memory.get_8_bit_value(location + 1)),
-      AddressingMode::PostIndexedIndirect => format!("(${:02X}),Y", self.memory.get_8_bit_value(location + 1)),
+      AddressingMode::IndirectX => format!("(${:02X},X)", self.memory.get_8_bit_value(location + 1)),
+      AddressingMode::IndirectY => format!("(${:02X}),Y", self.memory.get_8_bit_value(location + 1)),
     };
 
     let result = format!("{:04X} {:<8} {:<4} {}", 
@@ -226,20 +242,19 @@ impl Cpu {
 
         (address as usize + self.registers.y as usize, Cpu::crosses_boundary(address, self.registers.y))
       },
-      AddressingMode::PreIndexedIndirect => {
+      AddressingMode::IndirectX => {
         let indirect_address = self.memory.get_8_bit_value((self.registers.pc + 1) as usize) as usize + self.registers.x as usize;
         let address = self.memory.get_16_bit_value(indirect_address);
 
         (address as usize, false)
       },
-      AddressingMode::PostIndexedIndirect => {
+      AddressingMode::IndirectY => {
         let indirect_address = self.memory.get_8_bit_value((self.registers.pc + 1) as usize) as usize;
         let address = self.memory.get_16_bit_value(indirect_address);
 
         (address as usize + self.registers.y as usize, Cpu::crosses_boundary(address, self.registers.y))
       },
     }
-
   }
 
   fn get_value(&self, instruction: Instruction) -> (u8, bool) {
@@ -455,6 +470,38 @@ mod tests {
   #[test]
   fn test_crosses_boundary_crossed() {
     assert!(Cpu::crosses_boundary(0x1fff, 0x01));
+  }
+
+  #[test]
+  fn test_61_adc_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x40;
+    cpu.registers.x = 0x02;
+    cpu.registers.p.zero_flag = false;
+    cpu.registers.p.negative_flag = false;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x0032] = 0x00;
+    cpu.memory.memory[0x0033] = 0x40;
+    cpu.memory.memory[0x4000] = 0x20;
+    cpu.memory.memory[0x8000] = 0x61;
+    cpu.memory.memory[0x8001] = 0x30;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x60);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 6);
   }
 
   #[test]
@@ -739,6 +786,39 @@ mod tests {
     assert_eq!(return_values.bytes, 3);
     assert_eq!(return_values.clock_periods, 4);
   }
+
+  #[test]
+  fn test_71_adc_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0x40;
+    cpu.registers.y = 0x02;
+    cpu.registers.p.zero_flag = false;
+    cpu.registers.p.negative_flag = false;
+    cpu.registers.p.overflow_flag = false;
+    cpu.registers.p.carry_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.memory[0x0030] = 0x00;
+    cpu.memory.memory[0x0031] = 0x40;
+    cpu.memory.memory[0x4002] = 0x20;
+    cpu.memory.memory[0x8000] = 0x71;
+    cpu.memory.memory[0x8001] = 0x30;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0x60);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(!cpu.registers.p.negative_flag);
+    assert!(!cpu.registers.p.overflow_flag);
+    assert!(!cpu.registers.p.carry_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 5);
+  }
+
 
   #[test]
   fn test_75_adc_immediate_instruction() {

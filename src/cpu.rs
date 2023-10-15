@@ -177,7 +177,7 @@ impl Cpu {
   pub fn execute_opcode(&mut self) -> Option<ExecutionReturnValues> {
     let instruction = self.get_instruction_for_opcode(self.registers.pc as usize)?;
 
-    (instruction.execute)(self, instruction)
+    Some((instruction.execute)(self, instruction))
   }
 
   pub fn disassemble_opcode(&self, location: usize) -> Option<String> {
@@ -291,7 +291,7 @@ impl Cpu {
     address >> 8 != (address + offset as u16) >> 8
   }
 
-  pub fn adc_instruction(&mut self, instruction: Instruction) -> Option<ExecutionReturnValues> {
+  pub fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
     let (value, crossed_boundary) = self.get_value(instruction);
 
     let carry = match self.registers.p.carry_flag {
@@ -318,15 +318,23 @@ impl Cpu {
 
     self.registers.a = result as u8;
 
-    let clock_periods = match crossed_boundary {
-      true => instruction.clock_periods + 1,
-      false => instruction.clock_periods,
-    };
-
-    Some(ExecutionReturnValues { bytes: instruction.bytes, clock_periods: clock_periods })
+    ExecutionReturnValues::new(instruction, crossed_boundary) 
   }
 
-  pub fn sbc_instruction(&mut self, instruction: Instruction) -> Option<ExecutionReturnValues> {
+  pub fn and_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    let (value, crossed_boundary) = self.get_value(instruction);
+
+    let result = self.registers.a & value;
+
+    self.set_zero_flag(result);
+    self.set_negative_flag(result);
+
+    self.registers.a = result;
+
+    ExecutionReturnValues::new(instruction, crossed_boundary)
+  }
+
+  pub fn sbc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
     let (value, crossed_boundary) = self.get_value(instruction);
   
     let carry = match self.registers.p.carry_flag {
@@ -353,15 +361,10 @@ impl Cpu {
 
     self.registers.a = result as u8;
 
-    let clock_periods = match crossed_boundary {
-      true => instruction.clock_periods + 1,
-      false => instruction.clock_periods,
-    };
-
-    Some(ExecutionReturnValues { bytes: instruction.bytes, clock_periods: clock_periods })
+    ExecutionReturnValues::new(instruction, crossed_boundary)
   }
 
-  pub fn lda_instruction(&mut self, instruction: Instruction) -> Option<ExecutionReturnValues> {
+  pub fn lda_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
     let (value, crossed_boundary) = self.get_value(instruction);
 
     self.registers.a = value;
@@ -369,12 +372,7 @@ impl Cpu {
     self.set_zero_flag(self.registers.a);
     self.set_negative_flag(self.registers.a);
 
-    let clock_periods = match crossed_boundary {
-      true => instruction.clock_periods + 1,
-      false => instruction.clock_periods,
-    };
-
-    Some(ExecutionReturnValues { bytes: instruction.bytes, clock_periods: clock_periods })
+    ExecutionReturnValues::new(instruction, crossed_boundary)
   }
 }
 

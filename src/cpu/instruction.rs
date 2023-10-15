@@ -18,6 +18,18 @@ pub struct ExecutionReturnValues {
   pub clock_periods: u8,
 }
 
+impl ExecutionReturnValues {
+  pub fn new(instruction: Instruction, crossed_boundary: bool) -> ExecutionReturnValues {
+    ExecutionReturnValues { 
+      bytes: instruction.bytes, 
+      clock_periods:  match crossed_boundary {
+        true => instruction.clock_periods + 1,
+        false => instruction.clock_periods,
+      } 
+    }
+  }
+}
+
 #[derive(Copy, Clone)]
 pub struct Instruction {
   pub opcode: u8,
@@ -25,5 +37,5 @@ pub struct Instruction {
   pub bytes: u8,
   pub clock_periods: u8,
   pub addressing_mode: AddressingMode,
-  pub execute: fn(&mut Cpu, Instruction) -> Option<ExecutionReturnValues>,
+  pub execute: fn(&mut Cpu, Instruction) -> ExecutionReturnValues,
 }

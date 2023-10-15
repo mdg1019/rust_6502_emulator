@@ -196,49 +196,56 @@ impl Cpu {
     INSTRUCTION_SET.into_iter().find(|i| i.opcode == opcode)
   }
 
-  fn get_value(&self, instruction: Instruction) -> (u8, bool) {
+  fn get_address(&self, instruction: Instruction) -> (usize, bool) {   
     match instruction.addressing_mode {
       AddressingMode::Immediate => {
-        (self.memory.get_8_bit_value((self.registers.pc + 1) as usize), false)
+        (self.registers.pc as usize + 1, false)
       },
       AddressingMode::ZeroPage => {
         let zero_page_offset = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
 
-        (self.memory.get_8_bit_value(zero_page_offset as usize), false)
+        (zero_page_offset as usize, false)
       },
       AddressingMode::ZeroPageX => {
         let zero_page_offset = self.memory.get_8_bit_value((self.registers.pc + 1) as usize);
 
-        (self.memory.get_8_bit_value(zero_page_offset as usize + self.registers.x as usize), false)
+        (zero_page_offset as usize + self.registers.x as usize, false)
       },
       AddressingMode::Absolute => {
         let address = self.memory.get_16_bit_value((self.registers.pc + 1) as usize);
 
-        (self.memory.get_8_bit_value(address as usize), false)
+        (address as usize, false)
       },
       AddressingMode::AbsoluteX => {
         let address = self.memory.get_16_bit_value((self.registers.pc + 1) as usize);
 
-        (self.memory.get_8_bit_value(address as usize + self.registers.x as usize), Cpu::crosses_boundary(address, self.registers.x))
+        (address as usize + self.registers.x as usize, Cpu::crosses_boundary(address, self.registers.x))
       },
       AddressingMode::AbsoluteY => {
         let address = self.memory.get_16_bit_value((self.registers.pc + 1) as usize);
 
-        (self.memory.get_8_bit_value(address as usize + self.registers.y as usize), Cpu::crosses_boundary(address, self.registers.y))
+        (address as usize + self.registers.y as usize, Cpu::crosses_boundary(address, self.registers.y))
       },
       AddressingMode::PreIndexedIndirect => {
         let indirect_address = self.memory.get_8_bit_value((self.registers.pc + 1) as usize) as usize + self.registers.x as usize;
         let address = self.memory.get_16_bit_value(indirect_address);
 
-        (self.memory.get_8_bit_value(address as usize), false)
+        (address as usize, false)
       },
       AddressingMode::PostIndexedIndirect => {
         let indirect_address = self.memory.get_8_bit_value((self.registers.pc + 1) as usize) as usize;
         let address = self.memory.get_16_bit_value(indirect_address);
 
-        (self.memory.get_8_bit_value(address as usize + self.registers.y as usize), Cpu::crosses_boundary(address, self.registers.y))
+        (address as usize + self.registers.y as usize, Cpu::crosses_boundary(address, self.registers.y))
       },
     }
+
+  }
+
+  fn get_value(&self, instruction: Instruction) -> (u8, bool) {
+    let (address, crossed_boundary) = self.get_address(instruction);
+
+    (self.memory.get_8_bit_value(address), crossed_boundary)
   }
 
   pub fn set_zero_flag(&mut self, value: u8) {

@@ -4,27 +4,27 @@ use std::io::{self, Read};
 const SIXTY_FOUR_K_BYTES: usize = 64 * 1024;
 
 pub struct Memory {
-  pub memory: [u8; SIXTY_FOUR_K_BYTES],
+  pub contents: [u8; SIXTY_FOUR_K_BYTES],
 }
 
 impl Memory {
   pub fn new() -> Memory {
     Memory {
-      memory: [0x00u8; SIXTY_FOUR_K_BYTES],
+      contents: [0x00u8; SIXTY_FOUR_K_BYTES],
     }
   }
 
   pub fn get_8_bit_value(&self, location: usize) -> u8 {
-    self.memory[location]
+    self.contents[location]
   }
 
   pub fn set_8_bit_value(&mut self, location: usize, value: u8) {
-    self.memory[location] = value;
+    self.contents[location] = value;
   }
   
   pub fn get_16_bit_value(&self, location: usize) -> u16 {
-    let lsb = self.memory[location];
-    let msb = self.memory[location + 1];
+    let lsb = self.contents[location];
+    let msb = self.contents[location + 1];
 
     (msb as u16) << 8 | lsb as u16
   }
@@ -33,8 +33,8 @@ impl Memory {
     let lsb = (value as u16) & 0x00ff;
     let msb = (value as u16) >> 8;
 
-    self.memory[location] = lsb as u8;
-    self.memory[location + 1] = msb as u8;
+    self.contents[location] = lsb as u8;
+    self.contents[location + 1] = msb as u8;
   }
 
   pub fn create_page_hexdump(&self, page: u8) -> String {
@@ -47,7 +47,7 @@ impl Memory {
       let mut ascii_result = String::new();
 
       for _ in 0..16 {
-        let byte = self.memory[address];
+        let byte = self.contents[address];
 
         hex_result = hex_result + &format!("{:02X} ", byte)[..];
 
@@ -87,7 +87,7 @@ impl Memory {
     let mut address = location;
 
     for &byte in &buffer {
-      self.memory[address] = byte;
+      self.contents[address] = byte;
 
       address += 1;
     }
@@ -104,7 +104,7 @@ mod tests {
   fn test_get_8_bit_value() {
     let mut memory = Memory::new();
 
-    memory.memory[0] = 0xff;
+    memory.contents[0] = 0xff;
 
     let value = memory.get_8_bit_value(0);
 
@@ -115,19 +115,19 @@ mod tests {
   fn test_set_8_bit_value() {
     let mut memory = Memory::new();
 
-    assert_eq!(memory.memory[0], 0x00);
+    assert_eq!(memory.contents[0], 0x00);
 
     memory.set_8_bit_value(0, 0xff);
 
-    assert_eq!(memory.memory[0], 0xff);
+    assert_eq!(memory.contents[0], 0xff);
   }
 
   #[test]
   fn test_get_16_bit_value() {
     let mut memory = Memory::new();
 
-    memory.memory[0] = 0x2c;
-    memory.memory[1] = 0xfd;
+    memory.contents[0] = 0x2c;
+    memory.contents[1] = 0xfd;
 
     let value = memory.get_16_bit_value(0);
     
@@ -138,12 +138,12 @@ mod tests {
   fn test_set_16_bit_value() {
     let mut memory = Memory::new();
 
-    assert_eq!(memory.memory[0], 0x00);
-    assert_eq!(memory.memory[1], 0x00);
+    assert_eq!(memory.contents[0], 0x00);
+    assert_eq!(memory.contents[1], 0x00);
 
     memory.set_16_bit_value(0, 0x2cfd);
 
-    assert_eq!(memory.memory[0], 0xfd);
-    assert_eq!(memory.memory[1], 0x2c);
+    assert_eq!(memory.contents[0], 0xfd);
+    assert_eq!(memory.contents[1], 0x2c);
   }
  }

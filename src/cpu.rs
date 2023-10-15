@@ -11,10 +11,19 @@ use instruction::ExecutionReturnValues;
 const RESET_VECTOR: usize = 0xfffc;
 
 const ADC_INSTRUCTION: &str = "ADC";
+const AND_INSTRUCTION: &str = "AND";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 
-const INSTRUCTION_SET: [Instruction; 17] = [
+const INSTRUCTION_SET: [Instruction; 18] = [
+  Instruction {
+    opcode: 0x29,
+    mnemonic: AND_INSTRUCTION,
+    bytes: 2,
+    clock_periods: 2,
+    addressing_mode: AddressingMode::Immediate,
+    execute: Cpu::and_instruction,
+  },
   Instruction {
     opcode: 0x61,
     mnemonic: ADC_INSTRUCTION,
@@ -471,6 +480,30 @@ mod tests {
   }
 
   #[test]
+  fn test_29_and_immediate_instruction() {
+    let mut cpu: Cpu = Cpu::new(0x8000);
+    cpu.registers.a = 0xef;
+    cpu.registers.p.zero_flag = true;
+    cpu.registers.p.negative_flag = false;
+    cpu.registers.pc = 0x8000;
+
+    cpu.memory.contents[0x8000] = 0x29;
+    cpu.memory.contents[0x8001] = 0xfe;
+
+    let option_return_values = cpu.execute_opcode();
+    
+    assert!(option_return_values.is_some());
+
+    let return_values = option_return_values.unwrap();
+
+    assert_eq!(cpu.registers.a, 0xee);
+    assert!(!cpu.registers.p.zero_flag);
+    assert!(cpu.registers.p.negative_flag);
+    assert_eq!(return_values.bytes, 2);
+    assert_eq!(return_values.clock_periods, 2);
+  }
+
+  #[test]
   fn test_61_adc_immediate_instruction() {
     let mut cpu: Cpu = Cpu::new(0x8000);
     cpu.registers.a = 0x40;
@@ -481,11 +514,11 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x0032] = 0x00;
-    cpu.memory.memory[0x0033] = 0x40;
-    cpu.memory.memory[0x4000] = 0x20;
-    cpu.memory.memory[0x8000] = 0x61;
-    cpu.memory.memory[0x8001] = 0x30;
+    cpu.memory.contents[0x0032] = 0x00;
+    cpu.memory.contents[0x0033] = 0x40;
+    cpu.memory.contents[0x4000] = 0x20;
+    cpu.memory.contents[0x8000] = 0x61;
+    cpu.memory.contents[0x8001] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -512,9 +545,9 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x0030] = 0x20;
-    cpu.memory.memory[0x8000] = 0x65;
-    cpu.memory.memory[0x8001] = 0x30;
+    cpu.memory.contents[0x0030] = 0x20;
+    cpu.memory.contents[0x8000] = 0x65;
+    cpu.memory.contents[0x8001] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -541,8 +574,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0x99;
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0x99;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -569,8 +602,8 @@ mod tests {
     cpu.registers.p.carry_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0x01;
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0x01;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -597,8 +630,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0x01;
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0x01;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -625,8 +658,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0x01;
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0x01;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -653,8 +686,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0x01; // 127d + 1d = 128d, which is an overflow.
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0x01; // 127d + 1d = 128d, which is an overflow.
 
     let option_return_values = cpu.execute_opcode();
     
@@ -681,8 +714,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0x01; // 126d + 1d = 127d, which is not an overflow.
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0x01; // 126d + 1d = 127d, which is not an overflow.
 
     let option_return_values = cpu.execute_opcode();
     
@@ -709,8 +742,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0xfe; // -127d + -2d = -129d, which is an overflow.
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0xfe; // -127d + -2d = -129d, which is an overflow.
 
     let option_return_values = cpu.execute_opcode();  
     
@@ -737,8 +770,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0x69;
-    cpu.memory.memory[0x8001] = 0xff; // -127d + -1d = -128d, which is not an overflow.
+    cpu.memory.contents[0x8000] = 0x69;
+    cpu.memory.contents[0x8001] = 0xff; // -127d + -1d = -128d, which is not an overflow.
 
     let option_return_values = cpu.execute_opcode();
     
@@ -765,10 +798,10 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x3000] = 0x20;
-    cpu.memory.memory[0x8000] = 0x6d;
-    cpu.memory.memory[0x8001] = 0x00;
-    cpu.memory.memory[0x8002] = 0x30;
+    cpu.memory.contents[0x3000] = 0x20;
+    cpu.memory.contents[0x8000] = 0x6d;
+    cpu.memory.contents[0x8001] = 0x00;
+    cpu.memory.contents[0x8002] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -796,11 +829,11 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x0030] = 0x00;
-    cpu.memory.memory[0x0031] = 0x40;
-    cpu.memory.memory[0x4002] = 0x20;
-    cpu.memory.memory[0x8000] = 0x71;
-    cpu.memory.memory[0x8001] = 0x30;
+    cpu.memory.contents[0x0030] = 0x00;
+    cpu.memory.contents[0x0031] = 0x40;
+    cpu.memory.contents[0x4002] = 0x20;
+    cpu.memory.contents[0x8000] = 0x71;
+    cpu.memory.contents[0x8001] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -829,9 +862,9 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x0033] = 0x20;
-    cpu.memory.memory[0x8000] = 0x75;
-    cpu.memory.memory[0x8001] = 0x30;
+    cpu.memory.contents[0x0033] = 0x20;
+    cpu.memory.contents[0x8000] = 0x75;
+    cpu.memory.contents[0x8001] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -859,10 +892,10 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x3003] = 0x20;
-    cpu.memory.memory[0x8000] = 0x79;
-    cpu.memory.memory[0x8001] = 0x00;
-    cpu.memory.memory[0x8002] = 0x30;
+    cpu.memory.contents[0x3003] = 0x20;
+    cpu.memory.contents[0x8000] = 0x79;
+    cpu.memory.contents[0x8001] = 0x00;
+    cpu.memory.contents[0x8002] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -892,10 +925,10 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x3003] = 0x20;
-    cpu.memory.memory[0x8000] = 0x7d;
-    cpu.memory.memory[0x8001] = 0x00;
-    cpu.memory.memory[0x8002] = 0x30;
+    cpu.memory.contents[0x3003] = 0x20;
+    cpu.memory.contents[0x8000] = 0x7d;
+    cpu.memory.contents[0x8001] = 0x00;
+    cpu.memory.contents[0x8002] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -922,9 +955,9 @@ mod tests {
     cpu.registers.p.negative_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x50] = 0xff;
-    cpu.memory.memory[0x8000] = 0xa5;
-    cpu.memory.memory[0x8001] = 0x50;
+    cpu.memory.contents[0x50] = 0xff;
+    cpu.memory.contents[0x8000] = 0xa5;
+    cpu.memory.contents[0x8001] = 0x50;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -948,8 +981,8 @@ mod tests {
     cpu.registers.p.negative_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xa9;
-    cpu.memory.memory[0x8001] = 0xff;
+    cpu.memory.contents[0x8000] = 0xa9;
+    cpu.memory.contents[0x8001] = 0xff;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -974,9 +1007,9 @@ mod tests {
     cpu.registers.p.negative_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x32] = 0x00;
-    cpu.memory.memory[0x8000] = 0xb5;
-    cpu.memory.memory[0x8001] = 0x30;
+    cpu.memory.contents[0x32] = 0x00;
+    cpu.memory.contents[0x8000] = 0xb5;
+    cpu.memory.contents[0x8001] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
 
@@ -1000,10 +1033,10 @@ mod tests {
     cpu.registers.p.negative_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x3000] = 0xff;
-    cpu.memory.memory[0x8000] = 0xad;
-    cpu.memory.memory[0x8001] = 0x00;
-    cpu.memory.memory[0x8002] = 0x30;
+    cpu.memory.contents[0x3000] = 0xff;
+    cpu.memory.contents[0x8000] = 0xad;
+    cpu.memory.contents[0x8001] = 0x00;
+    cpu.memory.contents[0x8002] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
 
@@ -1028,10 +1061,10 @@ mod tests {
     cpu.registers.p.negative_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x3002] = 0xff;
-    cpu.memory.memory[0x8000] = 0xbd;
-    cpu.memory.memory[0x8001] = 0x00;
-    cpu.memory.memory[0x8002] = 0x30;
+    cpu.memory.contents[0x3002] = 0xff;
+    cpu.memory.contents[0x8000] = 0xbd;
+    cpu.memory.contents[0x8001] = 0x00;
+    cpu.memory.contents[0x8002] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
 
@@ -1056,10 +1089,10 @@ mod tests {
     cpu.registers.p.negative_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x3002] = 0xff;
-    cpu.memory.memory[0x8000] = 0xb9;
-    cpu.memory.memory[0x8001] = 0x00;
-    cpu.memory.memory[0x8002] = 0x30;
+    cpu.memory.contents[0x3002] = 0xff;
+    cpu.memory.contents[0x8000] = 0xb9;
+    cpu.memory.contents[0x8001] = 0x00;
+    cpu.memory.contents[0x8002] = 0x30;
 
     let option_return_values = cpu.execute_opcode();
 
@@ -1084,11 +1117,11 @@ mod tests {
     cpu.registers.p.negative_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x0075] = 0x32;
-    cpu.memory.memory[0x0076] = 0x30;
-    cpu.memory.memory[0x3032] = 0xff;
-    cpu.memory.memory[0x8000] = 0xa1;
-    cpu.memory.memory[0x8001] = 0x70;
+    cpu.memory.contents[0x0075] = 0x32;
+    cpu.memory.contents[0x0076] = 0x30;
+    cpu.memory.contents[0x3032] = 0xff;
+    cpu.memory.contents[0x8000] = 0xa1;
+    cpu.memory.contents[0x8001] = 0x70;
 
     let option_return_values = cpu.execute_opcode();
 
@@ -1113,11 +1146,11 @@ mod tests {
     cpu.registers.p.negative_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x0070] = 0x43;
-    cpu.memory.memory[0x0071] = 0x35;
-    cpu.memory.memory[0x3553] = 0xff;
-    cpu.memory.memory[0x8000] = 0xb1;
-    cpu.memory.memory[0x8001] = 0x70;
+    cpu.memory.contents[0x0070] = 0x43;
+    cpu.memory.contents[0x0071] = 0x35;
+    cpu.memory.contents[0x3553] = 0xff;
+    cpu.memory.contents[0x8000] = 0xb1;
+    cpu.memory.contents[0x8001] = 0x70;
 
     let option_return_values = cpu.execute_opcode();
 
@@ -1142,8 +1175,8 @@ mod tests {
     cpu.registers.p.carry_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0x02;
+    cpu.memory.contents[0x8000] = 0xe9;
+    cpu.memory.contents[0x8001] = 0x02;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -1170,8 +1203,8 @@ mod tests {
     cpu.registers.p.carry_flag = false;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0x02;
+    cpu.memory.contents[0x8000] = 0xe9;
+    cpu.memory.contents[0x8001] = 0x02;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -1198,8 +1231,8 @@ mod tests {
     cpu.registers.p.carry_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0x0a;
+    cpu.memory.contents[0x8000] = 0xe9;
+    cpu.memory.contents[0x8001] = 0x0a;
 
     let option_return_values = cpu.execute_opcode();
     
@@ -1226,8 +1259,8 @@ mod tests {
     cpu.registers.p.carry_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0x01; // -128d - 1d = -129d, which is an overflow
+    cpu.memory.contents[0x8000] = 0xe9;
+    cpu.memory.contents[0x8001] = 0x01; // -128d - 1d = -129d, which is an overflow
 
     let option_return_values = cpu.execute_opcode();
     
@@ -1254,8 +1287,8 @@ mod tests {
     cpu.registers.p.carry_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0x00; // -128d - 0d = -128d, which is not an overflow
+    cpu.memory.contents[0x8000] = 0xe9;
+    cpu.memory.contents[0x8001] = 0x00; // -128d - 0d = -128d, which is not an overflow
 
     let option_return_values = cpu.execute_opcode();
     
@@ -1282,8 +1315,8 @@ mod tests {
     cpu.registers.p.carry_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0xff; // 127d - -1d = 128d, which is an overflow
+    cpu.memory.contents[0x8000] = 0xe9;
+    cpu.memory.contents[0x8001] = 0xff; // 127d - -1d = 128d, which is an overflow
 
     let option_return_values = cpu.execute_opcode();
     
@@ -1310,8 +1343,8 @@ mod tests {
     cpu.registers.p.carry_flag = true;
     cpu.registers.pc = 0x8000;
 
-    cpu.memory.memory[0x8000] = 0xe9;
-    cpu.memory.memory[0x8001] = 0x00; // 127d - 0d = 127d, which is not an overflow
+    cpu.memory.contents[0x8000] = 0xe9;
+    cpu.memory.contents[0x8001] = 0x00; // 127d - 0d = 127d, which is not an overflow
 
     let option_return_values = cpu.execute_opcode();
     

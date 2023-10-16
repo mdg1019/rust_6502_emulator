@@ -55,14 +55,8 @@ impl Cpu {
             AddressingMode::Implied => String::new(),
             AddressingMode::Relative => {
                 let offset = self.memory.get_8_bit_value(location + 1);
-
-                let u16_offset = match offset & 0x80 {
-                    0x80 => 0xff00 + offset as u16,
-                    _ => offset as u16,
-                };
-
-                let address = location as u16 + instruction.bytes as u16 + u16_offset;
-                format!("${:04X}", address)
+                let relative_address = Cpu::calculate_address_from_relative_offset((location + 2) as u16, offset);
+                format!("${:04X}", relative_address)
             }
             AddressingMode::ZeroPage => {
                 format!("${:02X}", self.memory.get_8_bit_value(location + 1))
@@ -146,7 +140,7 @@ impl Cpu {
 
                 (
                     address as usize + self.registers.x as usize,
-                    Cpu::crosses_boundary(address, self.registers.x),
+                    Cpu::crosses_boundary_by_address_offset(address, self.registers.x),
                 )
             }
             AddressingMode::AbsoluteY => {
@@ -156,7 +150,7 @@ impl Cpu {
 
                 (
                     address as usize + self.registers.y as usize,
-                    Cpu::crosses_boundary(address, self.registers.y),
+                    Cpu::crosses_boundary_by_address_offset(address, self.registers.y),
                 )
             }
             AddressingMode::IndirectX => {
@@ -178,7 +172,7 @@ impl Cpu {
 
                 (
                     address as usize + self.registers.y as usize,
-                    Cpu::crosses_boundary(address, self.registers.y),
+                    Cpu::crosses_boundary_by_address_offset(address, self.registers.y),
                 )
             }
         }
@@ -214,8 +208,22 @@ impl Cpu {
         self.registers.p.carry_flag = result > 0xff;
     }
 
-    pub fn crosses_boundary(address: u16, offset: u8) -> bool {
-        address >> 8 != (address + offset as u16) >> 8
+    pub fn crosses_boundary_by_address_offset(address: u16, offset: u8) -> bool {
+        address & 0xff00 != (address + offset as u16) &0xff00
+    }
+
+    pub fn crosses_boundary_by_two_addresses(base_address: u16, address: u16) -> bool{
+        base_address & 0xff00 != address & 0xff00
+    }
+
+    pub fn calculate_address_from_relative_offset(base_address: u16, offset: u8) -> u16 {
+        match offset & 0x80 {
+            0x80 => {
+                let positive_offset = !offset + 1;
+                base_address - positive_offset as u16
+            }
+            _ => base_address + offset as u16,
+        }
     }
 
     pub fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -300,19 +308,13 @@ impl Cpu {
 
         let offset = self.memory.contents[(self.registers.pc + 1) as usize];
 
-        let u16_offset = match offset & 0x80 {
-            0x80 => 0xff00 + offset as u16,
-            _ => offset as u16,
-        };
+        let relative_address = Cpu::calculate_address_from_relative_offset(self.registers.pc + 2, offset);
 
-        self.registers.pc = self.registers.pc + instruction.bytes as u16 + u16_offset;
-
-        let mut cloned_instruction = instruction.clone();
-        cloned_instruction.bytes = 0;
+        self.registers.pc = relative_address;
 
         ExecutionReturnValues::new(
-            cloned_instruction,
-            (old_pc & 0xff00) != (self.registers.pc & 0xff00),
+            instruction,
+            Cpu::crosses_boundary_by_two_addresses(old_pc, relative_address)
         )
     }
 
@@ -458,12 +460,12 @@ mod tests {
 
     #[test]
     fn test_crosses_boundary_not_crossed() {
-        assert!(!Cpu::crosses_boundary(0x1ffe, 0x01));
+        assert!(!Cpu::crosses_boundary_by_address_offset(0x1ffe, 0x01));
     }
 
     #[test]
     fn test_crosses_boundary_crossed() {
-        assert!(Cpu::crosses_boundary(0x1fff, 0x01));
+        assert!(Cpu::crosses_boundary_by_address_offset(0x1fff, 0x01));
     }
 
     #[test]

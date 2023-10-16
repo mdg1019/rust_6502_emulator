@@ -47,7 +47,7 @@ const ASL_INSTRUCTION: &str = "ASL";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 
-pub const INSTRUCTION_SET: [Instruction; 27] = [
+pub const INSTRUCTION_SET: [Instruction; 30] = [
     Instruction {
         opcode: 0x06,
         mnemonic: ASL_INSTRUCTION,
@@ -62,6 +62,30 @@ pub const INSTRUCTION_SET: [Instruction; 27] = [
         bytes: 1,
         clock_periods: 2,
         addressing_mode: AddressingMode::Accumulator,
+        execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x0e,
+        mnemonic: ASL_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::Absolute,
+        execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x16,
+        mnemonic: ASL_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::ZeroPageX,
+        execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x1e,
+        mnemonic: ASL_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 7,
+        addressing_mode: AddressingMode::AbsoluteX,
         execute: Cpu::asl_instruction,
     },
     Instruction {

@@ -407,7 +407,7 @@ mod tests {
     }
 
     #[test]
-    fn test_06_asl_accumulator_instruction() {
+    fn test_06_asl_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -480,6 +480,88 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
+    }
+
+    #[test]
+    fn test_0e_asl_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x4000] = 0xcc;
+        cpu.memory.contents[0x8000] = 0x0e;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x40;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x4000], 0x98);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 6);
+    }
+
+    #[test]
+    fn test_16_asl_zero_page_x_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.x = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0032] = 0xcc;
+        cpu.memory.contents[0x8000] = 0x16;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x0032], 0x98);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 6);
+    }
+
+    #[test]
+    fn test_1e_asl_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.x = 2;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x4002] = 0xcc;
+        cpu.memory.contents[0x8000] = 0x1e;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x40;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x4002], 0x98);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 7);
     }
 
     #[test]

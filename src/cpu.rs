@@ -51,6 +51,9 @@ impl Cpu {
         }
 
         let operand = match instruction.addressing_mode {
+            AddressingMode::Accumulator => {
+                "A".to_string()
+            },
             AddressingMode::ZeroPage => {
                 format!("${:02X}", self.memory.get_8_bit_value(location + 1))
             }
@@ -95,6 +98,7 @@ impl Cpu {
 
     fn get_address(&self, instruction: Instruction) -> (usize, bool) {
         match instruction.addressing_mode {
+            AddressingMode::Accumulator => panic!("Can't get an address for the Accumulator addressing mode."),
             AddressingMode::Immediate => (self.registers.pc as usize + 1, false),
             AddressingMode::ZeroPage => {
                 let zero_page_offset = self
@@ -239,6 +243,31 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
+    pub fn asl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (address, value, crossed_boundary): (Option<usize>, u8, bool) = match instruction.addressing_mode {
+            AddressingMode::Accumulator => (None, self.registers.a, false),
+            _ => {
+                let (address, crossed_boundary) = self.get_address(instruction);
+                (Some(address), self.memory.contents[address], crossed_boundary)
+            },
+        };
+
+        self.registers.p.carry_flag = value & 0x80 == 0x80;
+
+        let result = value << 1;
+
+        self.set_zero_flag(result);
+        self.set_negative_flag(result);
+
+        if address.is_none() {
+            self.registers.a = result;
+        } else {
+            self.memory.contents[address.unwrap()] = result;
+        }
+
+        ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
+
     pub fn sbc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
@@ -283,6 +312,8 @@ impl Cpu {
 
 #[cfg(test)]
 mod tests {
+    use std::option;
+
     use super::*;
 
     #[test]
@@ -373,6 +404,82 @@ mod tests {
     #[test]
     fn test_crosses_boundary_crossed() {
         assert!(Cpu::crosses_boundary(0x1fff, 0x01));
+    }
+
+    #[test]
+    fn test_06_asl_accumulator_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0xcc;
+        cpu.memory.contents[0x8000] = 0x06;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x0030], 0x98);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 5);
+    }
+
+    #[test]
+    fn test_0a_asl_accumulator_instruction_carry() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0xcc;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x0a;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x98);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
+    }
+
+    #[test]
+    fn test_0a_asl_accumulator_instruction_no_carry() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x4c;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x0a;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x98);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(!cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
     }
 
     #[test]

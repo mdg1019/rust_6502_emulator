@@ -2,6 +2,7 @@ use super::Cpu;
 
 #[derive(Copy, Clone)]
 pub enum AddressingMode {
+    Accumulator,
     Immediate,
     ZeroPage,
     ZeroPageX,
@@ -42,10 +43,27 @@ pub struct Instruction {
 
 const ADC_INSTRUCTION: &str = "ADC";
 const AND_INSTRUCTION: &str = "AND";
+const ASL_INSTRUCTION: &str = "ASL";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 
-pub const INSTRUCTION_SET: [Instruction; 25] = [
+pub const INSTRUCTION_SET: [Instruction; 27] = [
+    Instruction {
+        opcode: 0x06,
+        mnemonic: ASL_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 5,
+        addressing_mode: AddressingMode::ZeroPage,
+        execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x0A,
+        mnemonic: ASL_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Accumulator,
+        execute: Cpu::asl_instruction,
+    },
     Instruction {
         opcode: 0x21,
         mnemonic: AND_INSTRUCTION,

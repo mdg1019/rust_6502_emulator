@@ -3,6 +3,7 @@ use super::Cpu;
 #[derive(Copy, Clone)]
 pub enum AddressingMode {
     Accumulator,
+    Implied,
     Immediate,
     ZeroPage,
     ZeroPageX,
@@ -44,10 +45,12 @@ pub struct Instruction {
 const ADC_INSTRUCTION: &str = "ADC";
 const AND_INSTRUCTION: &str = "AND";
 const ASL_INSTRUCTION: &str = "ASL";
+const CLC_INSTRUCTION: &str = "CLC";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
+const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 30] = [
+pub const INSTRUCTION_SET: [Instruction; 32] = [
     Instruction {
         opcode: 0x06,
         mnemonic: ASL_INSTRUCTION,
@@ -79,6 +82,14 @@ pub const INSTRUCTION_SET: [Instruction; 30] = [
         clock_periods: 6,
         addressing_mode: AddressingMode::ZeroPageX,
         execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x18,
+        mnemonic: CLC_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        execute: Cpu::clc_instruction,
     },
     Instruction {
         opcode: 0x1e,
@@ -135,6 +146,14 @@ pub const INSTRUCTION_SET: [Instruction; 30] = [
         clock_periods: 4,
         addressing_mode: AddressingMode::ZeroPageX,
         execute: Cpu::and_instruction,
+    },
+    Instruction {
+        opcode: 0x38,
+        mnemonic: SEC_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        execute: Cpu::sec_instruction,
     },
     Instruction {
         opcode: 0x39,

@@ -51,9 +51,8 @@ impl Cpu {
         }
 
         let operand = match instruction.addressing_mode {
-            AddressingMode::Accumulator => {
-                "A".to_string()
-            },
+            AddressingMode::Accumulator => "A".to_string(),
+            AddressingMode::Implied => String::new(),
             AddressingMode::ZeroPage => {
                 format!("${:02X}", self.memory.get_8_bit_value(location + 1))
             }
@@ -98,7 +97,13 @@ impl Cpu {
 
     fn get_address(&self, instruction: Instruction) -> (usize, bool) {
         match instruction.addressing_mode {
-            AddressingMode::Accumulator => panic!("Can't get an address for the Accumulator addressing mode."),
+            AddressingMode::Accumulator => {
+                panic!("Can't get an address for the Accumulator addressing mode.")
+            }
+            AddressingMode::Implied => {
+                panic!("Can't get and address for the Implied addressing mode.")
+            }
+
             AddressingMode::Immediate => (self.registers.pc as usize + 1, false),
             AddressingMode::ZeroPage => {
                 let zero_page_offset = self
@@ -244,13 +249,18 @@ impl Cpu {
     }
 
     pub fn asl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        let (address, value, crossed_boundary): (Option<usize>, u8, bool) = match instruction.addressing_mode {
-            AddressingMode::Accumulator => (None, self.registers.a, false),
-            _ => {
-                let (address, crossed_boundary) = self.get_address(instruction);
-                (Some(address), self.memory.contents[address], crossed_boundary)
-            },
-        };
+        let (address, value, crossed_boundary): (Option<usize>, u8, bool) =
+            match instruction.addressing_mode {
+                AddressingMode::Accumulator => (None, self.registers.a, false),
+                _ => {
+                    let (address, crossed_boundary) = self.get_address(instruction);
+                    (
+                        Some(address),
+                        self.memory.contents[address],
+                        crossed_boundary,
+                    )
+                }
+            };
 
         self.registers.p.carry_flag = value & 0x80 == 0x80;
 
@@ -266,6 +276,18 @@ impl Cpu {
         }
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
+
+    pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.registers.p.carry_flag = false;
+
+        ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.registers.p.carry_flag = true;
+
+        ExecutionReturnValues::new(instruction, false)
     }
 
     pub fn sbc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -537,6 +559,25 @@ mod tests {
     }
 
     #[test]
+    fn test_18_clc_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x18;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert!(!cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
+    }
+
+    #[test]
     fn test_1e_asl_absolute_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.x = 2;
@@ -575,7 +616,7 @@ mod tests {
 
         cpu.memory.contents[0x0032] = 0x00;
         cpu.memory.contents[0x0033] = 0x40;
-        
+
         cpu.memory.contents[0x4000] = 0xfe;
         cpu.memory.contents[0x8000] = 0x21;
         cpu.memory.contents[0x8001] = 0x30;
@@ -678,7 +719,7 @@ mod tests {
 
         cpu.memory.contents[0x0030] = 0x00;
         cpu.memory.contents[0x0031] = 0x40;
-        
+
         cpu.memory.contents[0x4002] = 0xfe;
         cpu.memory.contents[0x8000] = 0x31;
         cpu.memory.contents[0x8001] = 0x30;
@@ -720,6 +761,25 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 4);
+    }
+
+    #[test]
+    fn test_38_sec_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x38;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert!(cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
     }
 
     #[test]

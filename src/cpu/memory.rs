@@ -77,25 +77,24 @@ impl Memory {
         result
     }
 
-    pub fn read_raw_file_into_memory(
-        &mut self,
-        file_path: &str,
-        location: usize,
-    ) -> io::Result<()> {
-        let mut file = File::open(file_path)?;
+    pub fn read_raw_file_into_memory(&mut self, file_path: &str, location: usize) -> usize {
+        if let Ok(mut file) = File::open(file_path) {
+            let mut buffer = Vec::new();
 
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
+            if let Ok(length) = file.read_to_end(&mut buffer) {
+                let mut address = location;
 
-        let mut address = location;
+                for &byte in &buffer {
+                    self.contents[address] = byte;
 
-        for &byte in &buffer {
-            self.contents[address] = byte;
+                    address += 1;
+                }
 
-            address += 1;
+                return length;
+            }
         }
 
-        Ok(())
+        0
     }
 }
 

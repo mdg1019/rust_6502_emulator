@@ -4,6 +4,7 @@ use super::Cpu;
 pub enum AddressingMode {
     Accumulator,
     Implied,
+    Relative,
     Immediate,
     ZeroPage,
     ZeroPageX,
@@ -45,12 +46,13 @@ pub struct Instruction {
 const ADC_INSTRUCTION: &str = "ADC";
 const AND_INSTRUCTION: &str = "AND";
 const ASL_INSTRUCTION: &str = "ASL";
+const BCC_INSTRUCTION: &str = "BCC";
 const CLC_INSTRUCTION: &str = "CLC";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 32] = [
+pub const INSTRUCTION_SET: [Instruction; 33] = [
     Instruction {
         opcode: 0x06,
         mnemonic: ASL_INSTRUCTION,
@@ -234,6 +236,14 @@ pub const INSTRUCTION_SET: [Instruction; 32] = [
         clock_periods: 4,
         addressing_mode: AddressingMode::AbsoluteX,
         execute: Cpu::adc_instruction,
+    },
+    Instruction {
+        opcode: 0x90,
+        mnemonic: BCC_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Relative,
+        execute: Cpu::bcc_instruction,
     },
     Instruction {
         opcode: 0xA1,

@@ -37,7 +37,7 @@ impl Cpu {
         Some((instruction.execute)(self, instruction))
     }
 
-    pub fn disassemble_opcode(&self, location: usize) -> Option<String> {
+    pub fn disassemble_opcode(&self, location: usize) -> Option<(String, u8)> {
         let instruction = self.get_instruction_for_opcode(location)?;
 
         let mut bytes = String::new();
@@ -53,6 +53,17 @@ impl Cpu {
         let operand = match instruction.addressing_mode {
             AddressingMode::Accumulator => "A".to_string(),
             AddressingMode::Implied => String::new(),
+            AddressingMode::Relative => {
+                let offset = self.memory.get_8_bit_value(location + 1);
+
+                let u16_offset = match offset & 0x80 {
+                    0x80 => 0xff00 + offset as u16,
+                    _ => offset as u16,
+                };
+
+                let address = location as u16 + instruction.bytes as u16 + u16_offset;
+                format!("${:04X}", address)
+            }
             AddressingMode::ZeroPage => {
                 format!("${:02X}", self.memory.get_8_bit_value(location + 1))
             }
@@ -84,7 +95,7 @@ impl Cpu {
             location, bytes, instruction.mnemonic, operand
         );
 
-        Some(result)
+        Some((result, instruction.bytes))
     }
 
     fn get_instruction_for_opcode(&self, location: usize) -> Option<Instruction> {
@@ -101,9 +112,11 @@ impl Cpu {
                 panic!("Can't get an address for the Accumulator addressing mode.")
             }
             AddressingMode::Implied => {
-                panic!("Can't get and address for the Implied addressing mode.")
+                panic!("Can't get an address for the Implied addressing mode.")
             }
-
+            AddressingMode::Relative => {
+                panic!("Can't get an address for the Relative addressing mode.")
+            }
             AddressingMode::Immediate => (self.registers.pc as usize + 1, false),
             AddressingMode::ZeroPage => {
                 let zero_page_offset = self
@@ -276,6 +289,31 @@ impl Cpu {
         }
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
+
+    pub fn bcc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        if self.registers.p.carry_flag {
+            return ExecutionReturnValues::new(instruction, false);
+        }
+
+        let old_pc = self.registers.pc;
+
+        let offset = self.memory.contents[(self.registers.pc + 1) as usize];
+
+        let u16_offset = match offset & 0x80 {
+            0x80 => 0xff00 + offset as u16,
+            _ => offset as u16,
+        };
+
+        self.registers.pc = self.registers.pc + instruction.bytes as u16 + u16_offset;
+
+        let mut cloned_instruction = instruction.clone();
+        cloned_instruction.bytes = 0;
+
+        ExecutionReturnValues::new(
+            cloned_instruction,
+            (old_pc & 0xff00) != (self.registers.pc & 0xff00),
+        )
     }
 
     pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {

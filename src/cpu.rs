@@ -376,6 +376,35 @@ mod tests {
     }
 
     #[test]
+    fn test_21_and_indirect_x_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0xef;
+        cpu.registers.x = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0032] = 0x00;
+        cpu.memory.contents[0x0033] = 0x40;
+        
+        cpu.memory.contents[0x4000] = 0xfe;
+        cpu.memory.contents[0x8000] = 0x21;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0xee);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 6);
+    }
+
+    #[test]
     fn test_25_and_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0xef;
@@ -448,6 +477,34 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+    }
+    #[test]
+    fn test_31_and_indirect_y_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0xef;
+        cpu.registers.y = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0x00;
+        cpu.memory.contents[0x0031] = 0x40;
+        
+        cpu.memory.contents[0x4002] = 0xfe;
+        cpu.memory.contents[0x8000] = 0x31;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0xee);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 5);
     }
 
     #[test]

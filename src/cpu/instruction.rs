@@ -45,7 +45,15 @@ const AND_INSTRUCTION: &str = "AND";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 
-pub const INSTRUCTION_SET: [Instruction; 23] = [
+pub const INSTRUCTION_SET: [Instruction; 25] = [
+    Instruction {
+        opcode: 0x21,
+        mnemonic: AND_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::IndirectX,
+        execute: Cpu::and_instruction,
+    },
     Instruction {
         opcode: 0x25,
         mnemonic: AND_INSTRUCTION,
@@ -68,6 +76,14 @@ pub const INSTRUCTION_SET: [Instruction; 23] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::Absolute,
+        execute: Cpu::and_instruction,
+    },
+    Instruction {
+        opcode: 0x31,
+        mnemonic: AND_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 5,
+        addressing_mode: AddressingMode::IndirectY,
         execute: Cpu::and_instruction,
     },
     Instruction {

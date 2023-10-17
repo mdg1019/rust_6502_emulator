@@ -19,6 +19,7 @@ pub enum AddressingMode {
 pub struct ExecutionReturnValues {
     pub bytes: u8,
     pub clock_periods: u8,
+    pub set_program_counter: bool,
 }
 
 impl ExecutionReturnValues {
@@ -29,6 +30,7 @@ impl ExecutionReturnValues {
                 true => instruction.clock_periods + 1,
                 false => instruction.clock_periods,
             },
+            set_program_counter: instruction.sets_program_counter,
         }
     }
 }
@@ -40,7 +42,7 @@ pub struct Instruction {
     pub bytes: u8,
     pub clock_periods: u8,
     pub addressing_mode: AddressingMode,
-    pub set_program_counter: bool,
+    pub sets_program_counter: bool,
     pub execute: fn(&mut Cpu, Instruction) -> ExecutionReturnValues,
 }
 
@@ -60,7 +62,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 5,
         addressing_mode: AddressingMode::ZeroPage,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::asl_instruction,
     },
     Instruction {
@@ -69,7 +71,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 1,
         clock_periods: 2,
         addressing_mode: AddressingMode::Accumulator,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::asl_instruction,
     },
     Instruction {
@@ -78,7 +80,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 6,
         addressing_mode: AddressingMode::Absolute,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::asl_instruction,
     },
     Instruction {
@@ -87,7 +89,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 6,
         addressing_mode: AddressingMode::ZeroPageX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::asl_instruction,
     },
     Instruction {
@@ -96,7 +98,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 1,
         clock_periods: 2,
         addressing_mode: AddressingMode::Implied,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::clc_instruction,
     },
     Instruction {
@@ -105,7 +107,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 7,
         addressing_mode: AddressingMode::AbsoluteX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::asl_instruction,
     },
     Instruction {
@@ -114,7 +116,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 6,
         addressing_mode: AddressingMode::IndirectX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -123,7 +125,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 3,
         addressing_mode: AddressingMode::ZeroPage,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -132,7 +134,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 2,
         addressing_mode: AddressingMode::Immediate,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -141,7 +143,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::Absolute,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -150,7 +152,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 5,
         addressing_mode: AddressingMode::IndirectY,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -159,7 +161,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 4,
         addressing_mode: AddressingMode::ZeroPageX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -168,7 +170,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 1,
         clock_periods: 2,
         addressing_mode: AddressingMode::Implied,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::sec_instruction,
     },
     Instruction {
@@ -177,7 +179,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::AbsoluteY,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -186,7 +188,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::AbsoluteX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::and_instruction,
     },
     Instruction {
@@ -195,7 +197,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 6,
         addressing_mode: AddressingMode::IndirectX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -204,7 +206,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 3,
         addressing_mode: AddressingMode::ZeroPage,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -213,7 +215,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 2,
         addressing_mode: AddressingMode::Immediate,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -222,7 +224,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::Absolute,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -231,7 +233,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 5,
         addressing_mode: AddressingMode::IndirectY,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -240,7 +242,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 4,
         addressing_mode: AddressingMode::ZeroPageX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -249,7 +251,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::AbsoluteY,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -258,7 +260,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::AbsoluteX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::adc_instruction,
     },
     Instruction {
@@ -267,7 +269,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 2,
         addressing_mode: AddressingMode::Relative,
-        set_program_counter: true,
+        sets_program_counter: true,
         execute: Cpu::bcc_instruction,
     },
     Instruction {
@@ -276,7 +278,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 6,
         addressing_mode: AddressingMode::IndirectX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -285,7 +287,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 3,
         addressing_mode: AddressingMode::ZeroPage,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -294,7 +296,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 2,
         addressing_mode: AddressingMode::Immediate,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -303,7 +305,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::Absolute,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -312,7 +314,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 5,
         addressing_mode: AddressingMode::IndirectY,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -321,7 +323,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 4,
         addressing_mode: AddressingMode::ZeroPageX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -330,7 +332,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::AbsoluteY,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -339,7 +341,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::AbsoluteX,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::lda_instruction,
     },
     Instruction {
@@ -348,7 +350,7 @@ pub const INSTRUCTION_SET: [Instruction; 33] = [
         bytes: 2,
         clock_periods: 2,
         addressing_mode: AddressingMode::Immediate,
-        set_program_counter: false,
+        sets_program_counter: false,
         execute: Cpu::sbc_instruction,
     },
 ];

@@ -491,8 +491,10 @@ mod tests {
         assert!(!cpu.registers.p.zero_flag);
         assert!(cpu.registers.p.negative_flag);
         assert!(cpu.registers.p.carry_flag);
+        assert!(!return_values.set_program_counter);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -518,6 +520,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -543,6 +546,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -570,6 +574,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -597,6 +602,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -616,6 +622,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -644,6 +651,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 7);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -673,6 +681,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -698,6 +707,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -722,6 +732,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -748,6 +759,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
     #[test]
     fn test_31_and_indirect_y_instruction() {
@@ -776,6 +788,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -802,6 +815,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -821,6 +835,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -848,6 +863,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -875,6 +891,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -907,6 +924,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -936,6 +954,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -964,6 +983,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -992,6 +1012,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1020,6 +1041,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1048,6 +1070,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1076,6 +1099,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1104,6 +1128,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1132,6 +1157,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1160,6 +1186,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1190,6 +1217,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1222,6 +1250,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1252,6 +1281,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1283,6 +1313,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1314,6 +1345,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1334,6 +1366,7 @@ mod tests {
         assert_eq!(cpu.registers.pc, 0x8004);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
     }
 
     #[test]
@@ -1354,6 +1387,7 @@ mod tests {
         assert_eq!(cpu.registers.pc, 0x8002);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
     }
 
     #[test]
@@ -1380,6 +1414,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1405,6 +1440,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1432,6 +1468,7 @@ mod tests {
         assert!(!cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1459,6 +1496,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1487,6 +1525,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1515,6 +1554,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1544,6 +1584,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1573,6 +1614,7 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1601,6 +1643,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag); // no borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1629,6 +1672,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag); // no borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1657,6 +1701,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag); // no borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1685,6 +1730,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag); // no borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1713,6 +1759,7 @@ mod tests {
         assert!(cpu.registers.p.carry_flag); // no borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1741,6 +1788,7 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag); // borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]
@@ -1769,5 +1817,6 @@ mod tests {
         assert!(cpu.registers.p.carry_flag); // no borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 }

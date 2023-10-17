@@ -319,6 +319,26 @@ impl Cpu {
         )
     }
 
+    pub fn bcs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        if !self.registers.p.carry_flag {
+            self.registers.pc += instruction.bytes as u16;
+            return ExecutionReturnValues::new(instruction, false);
+        }
+
+        let old_pc = self.registers.pc;
+
+        let offset = self.memory.contents[(self.registers.pc + 1) as usize];
+
+        let relative_address = Cpu::calculate_address_from_relative_offset(self.registers.pc + 2, offset);
+
+        self.registers.pc = relative_address;
+
+        ExecutionReturnValues::new(
+            instruction,
+            Cpu::crosses_boundary_by_two_addresses(old_pc, relative_address)
+        )
+    }
+
     pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = false;
 
@@ -1616,6 +1636,49 @@ mod tests {
         assert_eq!(return_values.clock_periods, 5);
         assert!(!return_values.set_program_counter);
     }
+
+    #[test]
+    fn test_b0_bcc_relative_instruction_with_carry_not_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xB0;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8002);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_b0_bcs_relative_instruction_with_carry_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xB0;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8004);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
 
     #[test]
     fn test_e9_sbc_immediate_instruction() {

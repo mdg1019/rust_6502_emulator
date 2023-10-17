@@ -83,7 +83,7 @@ impl StatusFlags {
         }
         .to_string()
             + match self.overflow_flag {
-                true => "O",
+                true => "V",
                 false => "-",
             }
             + "1"
@@ -431,7 +431,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[1], 'O' as u8);
+        assert_eq!(result.as_bytes()[1], 'V' as u8);
     }
 
     #[test]

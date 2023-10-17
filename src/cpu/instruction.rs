@@ -51,12 +51,13 @@ const AND_INSTRUCTION: &str = "AND";
 const ASL_INSTRUCTION: &str = "ASL";
 const BCC_INSTRUCTION: &str = "BCC";
 const BCS_INSTRUCTION: &str = "BCS";
+const BEQ_INSTRUCTION: &str = "BEQ";
 const CLC_INSTRUCTION: &str = "CLC";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 34] = [
+pub const INSTRUCTION_SET: [Instruction; 35] = [
     Instruction {
         opcode: 0x06,
         mnemonic: ASL_INSTRUCTION,
@@ -362,5 +363,14 @@ pub const INSTRUCTION_SET: [Instruction; 34] = [
         addressing_mode: AddressingMode::Immediate,
         sets_program_counter: false,
         execute: Cpu::sbc_instruction,
+    },
+    Instruction {
+        opcode: 0xF0,
+        mnemonic: BEQ_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Relative,
+        sets_program_counter: true,
+        execute: Cpu::beq_instruction,
     },
 ];

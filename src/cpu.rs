@@ -84,12 +84,12 @@ impl Cpu {
             }
         };
 
-        let result = format!(
+        let line = format!(
             "{:04X} {:<8} {:<4} {}",
             location, bytes, instruction.mnemonic, operand
         );
 
-        Some((result, instruction.bytes))
+        Some((line, instruction.bytes))
     }
 
     fn get_instruction_for_opcode(&self, location: usize) -> Option<Instruction> {
@@ -299,8 +299,8 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn bcc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        if self.registers.p.carry_flag {
+    fn branch(&mut self, instruction: Instruction, pred: bool) -> ExecutionReturnValues {
+        if !pred {
             self.registers.pc += instruction.bytes as u16;
             return ExecutionReturnValues::new(instruction, false);
         }
@@ -319,24 +319,16 @@ impl Cpu {
         )
     }
 
+    pub fn bcc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.branch(instruction, !self.registers.p.carry_flag)
+    }
+
     pub fn bcs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        if !self.registers.p.carry_flag {
-            self.registers.pc += instruction.bytes as u16;
-            return ExecutionReturnValues::new(instruction, false);
-        }
+        self.branch(instruction, self.registers.p.carry_flag)
+    }
 
-        let old_pc = self.registers.pc;
-
-        let offset = self.memory.contents[(self.registers.pc + 1) as usize];
-
-        let relative_address = Cpu::calculate_address_from_relative_offset(self.registers.pc + 2, offset);
-
-        self.registers.pc = relative_address;
-
-        ExecutionReturnValues::new(
-            instruction,
-            Cpu::crosses_boundary_by_two_addresses(old_pc, relative_address)
-        )
+    pub fn beq_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.branch(instruction, self.registers.p.zero_flag)
     }
 
     pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -1679,7 +1671,6 @@ mod tests {
         assert!(return_values.set_program_counter);
     }
 
-
     #[test]
     fn test_e9_sbc_immediate_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
@@ -1882,4 +1873,47 @@ mod tests {
         assert_eq!(return_values.clock_periods, 2);
         assert!(!return_values.set_program_counter);
     }
+
+    #[test]
+    fn test_f0_beq_relative_instruction_with_zero_not_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.zero_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xf0;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8002);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_f0_beq_relative_instruction_with_zero_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xF0;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8004);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
 }

@@ -343,6 +343,10 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
+    pub fn bmi_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.branch(instruction, self.registers.p.negative_flag)
+    }
+
     pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = false;
 
@@ -736,7 +740,6 @@ mod tests {
         assert!(!return_values.set_program_counter);
     }
 
-
     #[test]
     fn test_25_and_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
@@ -843,6 +846,49 @@ mod tests {
         assert_eq!(return_values.clock_periods, 4);
         assert!(!return_values.set_program_counter);
     }
+
+    #[test]
+    fn test_30_bmi_relative_instruction_with_negative_not_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x30;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8002);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_30_bmi_relative_instruction_with_negative_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x30;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8004);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
     #[test]
     fn test_31_and_indirect_y_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);

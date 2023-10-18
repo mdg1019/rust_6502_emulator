@@ -7,6 +7,7 @@ const UNUSED_FLAG: u8 = 0x20;
 const OVERFLOW_FLAG: u8 = 0x40;
 const NEGATIVE_FLAG: u8 = 0x80;
 
+#[derive(Copy, Clone)]
 pub struct StatusFlags {
     pub carry_flag: bool,
     pub zero_flag: bool,

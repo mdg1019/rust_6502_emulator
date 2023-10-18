@@ -18,7 +18,7 @@ impl Registers {
             x: 0,
             y: 0,
             p: StatusFlags::new(),
-            sp: 0xFD,
+            sp: 0xff,
             pc: 0,
         }
     }

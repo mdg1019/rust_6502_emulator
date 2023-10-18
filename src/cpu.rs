@@ -8,7 +8,10 @@ use instruction::Instruction;
 use memory::Memory;
 use registers::Registers;
 
+const NMI_VECTOR: usize = 0xfffa;
 const RESET_VECTOR: usize = 0xfffc;
+const IRQ_BRK_VECTOR: usize = 0xfffe;
+const STACK_BASE_ADDRESS: usize = 0x0100;
 
 pub struct Cpu {
     pub registers: Registers,
@@ -28,6 +31,9 @@ impl Cpu {
     }
 
     pub fn power_up(&mut self) {
+        self.registers.p.interrupt_disable_flag = true;
+        self.registers.p.break_flag = false;
+        self.registers.sp = 0xff;
         self.registers.pc = self.memory.get_16_bit_value(RESET_VECTOR);
     }
 
@@ -226,6 +232,22 @@ impl Cpu {
         }
     }
 
+    pub fn push_u8(&mut self, value: u8) {
+        let stack_pointer: usize = STACK_BASE_ADDRESS + self.registers.sp as usize;
+
+        self.memory.set_8_bit_value(stack_pointer, value);
+
+        self.registers.sp -= 1;
+    }
+
+    pub fn push_u16(&mut self, value: u16) {
+        let stack_pointer: usize = STACK_BASE_ADDRESS + self.registers.sp as usize;
+
+        self.memory.set_16_bit_value(stack_pointer - 1, value);
+
+        self.registers.sp -= 2;
+    }
+
     pub fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
@@ -353,6 +375,20 @@ impl Cpu {
 
     pub fn bpl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, !self.registers.p.negative_flag)
+    }
+    
+    pub fn brk_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.push_u16(self.registers.pc + 2);
+
+        self.registers.p.break_flag = true;
+        self.push_u8(self.registers.p.to_byte());
+        self.registers.p.break_flag = false;
+        
+        self.registers.p.interrupt_disable_flag = true;
+
+        self.registers.pc = self.memory.get_16_bit_value(IRQ_BRK_VECTOR);
+
+        ExecutionReturnValues::new(instruction, false)
     }
 
     pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -503,6 +539,62 @@ mod tests {
     #[test]
     fn test_crosses_boundary_crossed() {
         assert!(Cpu::crosses_boundary_by_address_offset(0x1fff, 0x01));
+    }
+
+    #[test]
+    fn test_push_u8() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.sp = 0xff;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01ff] = 0x00;
+
+        cpu.push_u8(0xff);
+
+        assert_eq!(cpu.registers.sp, 0xfe);
+        assert_eq!(cpu.memory.contents[0x01ff], 0xff);
+    }
+    
+    #[test]
+    fn test_push_u16() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.sp = 0xff;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01fe] = 0x00;
+        cpu.memory.contents[0x01ff] = 0x00;
+        cpu.push_u16(0x0102);
+
+        assert_eq!(cpu.registers.sp, 0xfd);
+        assert_eq!(cpu.memory.contents[0x01fe], 0x02);
+        assert_eq!(cpu.memory.contents[0x01ff], 0x01);
+    }
+
+    #[test]
+    fn test_00_brk_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.sp = 0xff;
+        cpu.registers.pc = 0x8000;
+
+        let mut old_flags = cpu.registers.p.clone();
+        old_flags.break_flag = true;
+        let old_flags = old_flags.to_byte();
+        
+        cpu.memory.contents[0x8000] = 0;
+        cpu.memory.contents[IRQ_BRK_VECTOR] = 0x02;
+        cpu.memory.contents[IRQ_BRK_VECTOR + 1] = 0x40;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x4002);
+        assert_eq!(cpu.registers.sp, 0xfc);
+        assert_eq!(cpu.memory.contents[0x01fd], old_flags);
+        assert_eq!(cpu.memory.contents[0x01fe], 0x02);
+        assert_eq!(cpu.memory.contents[0x01ff], 0x80);
     }
 
     #[test]

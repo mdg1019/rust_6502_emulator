@@ -55,12 +55,13 @@ const BEQ_INSTRUCTION: &str = "BEQ";
 const BIT_INSTRUCTION: &str = "BIT";
 const BMI_INSTRUCTION: &str = "BMI";
 const BNE_INSTRUCTION: &str = "BNE";
+const BPL_INSTRUCTION: &str = "BPL";
 const CLC_INSTRUCTION: &str = "CLC";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 39] = [
+pub const INSTRUCTION_SET: [Instruction; 40] = [
     Instruction {
         opcode: 0x06,
         mnemonic: ASL_INSTRUCTION,
@@ -87,6 +88,15 @@ pub const INSTRUCTION_SET: [Instruction; 39] = [
         addressing_mode: AddressingMode::Absolute,
         sets_program_counter: false,
         execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x10,
+        mnemonic: BPL_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Relative,
+        sets_program_counter: true,
+        execute: Cpu::bpl_instruction,
     },
     Instruction {
         opcode: 0x16,

@@ -68,7 +68,7 @@ const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 47] = [
+pub const INSTRUCTION_SET: [Instruction; 48] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -446,6 +446,15 @@ pub const INSTRUCTION_SET: [Instruction; 47] = [
         addressing_mode: AddressingMode::AbsoluteX,
         sets_program_counter: false,
         execute: Cpu::lda_instruction,
+    },
+    Instruction {
+        opcode: 0xC5,
+        mnemonic: CMP_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 3,
+        addressing_mode: AddressingMode::ZeroPage,
+        sets_program_counter: false,
+        execute: Cpu::cmp_instruction,
     },
     Instruction {
         opcode: 0xC9,

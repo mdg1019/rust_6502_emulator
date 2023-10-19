@@ -62,11 +62,12 @@ const BVS_INSTRUCTION: &str = "BVS";
 const CLC_INSTRUCTION: &str = "CLC";
 const CLD_INSTRUCTION: &str = "CLD";
 const CLI_INSTRUCTION: &str = "CLI";
+const CLV_INSTRUCTION: &str = "CLV";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 45] = [
+pub const INSTRUCTION_SET: [Instruction; 46] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -417,6 +418,15 @@ pub const INSTRUCTION_SET: [Instruction; 45] = [
         addressing_mode: AddressingMode::ZeroPageX,
         sets_program_counter: false,
         execute: Cpu::lda_instruction,
+    },
+    Instruction {
+        opcode: 0xB8,
+        mnemonic: CLV_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::clv_instruction,
     },
     Instruction {
         opcode: 0xB9,

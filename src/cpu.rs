@@ -391,6 +391,10 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
+    pub fn bvc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.branch(instruction, !self.registers.p.overflow_flag)
+    }
+
     pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = false;
 
@@ -1162,6 +1166,48 @@ mod tests {
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 4);
         assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_50_bvc_relative_instruction_with_overflow_not_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x50;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8004);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_50_bvc_relative_instruction_with_overflow_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.overflow_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x50;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8002);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
     }
 
     #[test]

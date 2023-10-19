@@ -395,6 +395,10 @@ impl Cpu {
         self.branch(instruction, !self.registers.p.overflow_flag)
     }
 
+    pub fn bvs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.branch(instruction, self.registers.p.overflow_flag)
+    }
+
     pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = false;
 
@@ -1537,6 +1541,48 @@ mod tests {
     }
 
     #[test]
+    fn test_b7_bvs_relative_instruction_with_overflow_not_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x70;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8002);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_70_bvs_relative_instruction_with_overflow_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.overflow_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x70;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8004);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_71_adc_indirect_y_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0x40;
@@ -1934,7 +1980,7 @@ mod tests {
     }
 
     #[test]
-    fn test_b0_bcc_relative_instruction_with_carry_not_set() {
+    fn test_b0_bcs_relative_instruction_with_carry_not_set() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.p.carry_flag = false;
         cpu.registers.pc = 0x8000;

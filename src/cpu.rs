@@ -214,6 +214,14 @@ impl Cpu {
         self.registers.p.carry_flag = result > 0xff;
     }
 
+    pub fn compare(&mut self, register_value: u8, value: u8) {
+        let result = (register_value as u16).wrapping_sub(value as u16);
+        
+        self.set_zero_flag(result as u8);
+        self.set_negative_flag(result as u8);
+        self.set_carry_flag(!result);
+    }
+
     pub fn crosses_boundary_by_address_offset(address: u16, offset: u8) -> bool {
         address & 0xff00 != (address + offset as u16) &0xff00
     }
@@ -354,7 +362,7 @@ impl Cpu {
     }
 
     pub fn bit_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        let (value, cross_boundary) = self.get_value(instruction);
+        let (value, _) = self.get_value(instruction);
 
         let result = self.registers.a & value;
 
@@ -421,6 +429,14 @@ impl Cpu {
         self.registers.p.overflow_flag = false;
 
         ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn cmp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (value, crossed_boundary) = self.get_value(instruction);
+
+        self.compare(self.registers.a, value);
+
+        ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
     pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -594,6 +610,54 @@ mod tests {
         assert_eq!(cpu.registers.sp, 0xfd);
         assert_eq!(cpu.memory.contents[0x01fe], 0x02);
         assert_eq!(cpu.memory.contents[0x01ff], 0x01);
+    }
+
+    #[test]
+    fn test_compare_when_register_is_less_than_value() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x10;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.carry_flag = true;
+
+        cpu.compare(cpu.registers.a, 0x11);
+
+
+        assert!(cpu.registers.p.negative_flag);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.carry_flag);
+    }
+
+    #[test]
+    fn test_compare_when_register_is_equal_to_value() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x10;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.zero_flag = false;
+        cpu.registers.p.carry_flag = false;
+
+        cpu.compare(cpu.registers.a, 0x10);
+
+
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.carry_flag);
+    }
+
+    #[test]
+    fn test_compare_when_register_is_greater_than_value() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x10;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.carry_flag = false;
+
+        cpu.compare(cpu.registers.a, 0x09);
+
+
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.carry_flag);
     }
 
     #[test]
@@ -2075,6 +2139,32 @@ mod tests {
 
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_c9_cmp_immediate_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x10;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xc9;
+        cpu.memory.contents[0x8001] = 0x11;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert!(cpu.registers.p.negative_flag);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
         assert!(!return_values.set_program_counter);
     }

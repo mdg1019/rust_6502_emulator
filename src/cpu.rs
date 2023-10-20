@@ -455,6 +455,19 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
+    pub fn dec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (address, crossed_boundary) = self.get_address(instruction);
+
+        let result = self.memory.contents[address].wrapping_sub(1);
+
+        self.set_negative_flag(result);
+        self.set_zero_flag(result);
+
+        self.memory.contents[address] = result;
+
+        ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
+
     pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = true;
 
@@ -2267,6 +2280,29 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_c6_dec_zero_page_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0x00;
+        cpu.memory.contents[0x8000] = 0xC6;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x0030], 0xFF);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(!cpu.registers.p.zero_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 5);
         assert!(!return_values.set_program_counter);
     }
 

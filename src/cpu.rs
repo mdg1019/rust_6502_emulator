@@ -2144,6 +2144,36 @@ mod tests {
     }
 
     #[test]
+    fn test_c1_cmp_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x10;
+        cpu.registers.x = 0x02;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0032] = 0x00;
+        cpu.memory.contents[0x0033] = 0x30;
+        cpu.memory.contents[0x3000] = 0x11;
+        cpu.memory.contents[0x8000] = 0xc1;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert!(cpu.registers.p.negative_flag);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_c5_cmp_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0x10;

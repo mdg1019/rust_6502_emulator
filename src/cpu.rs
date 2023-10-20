@@ -2286,6 +2286,8 @@ mod tests {
     #[test]
     fn test_c6_dec_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.p.zero_flag = true;
         cpu.registers.pc = 0x8000;
 
         cpu.memory.contents[0x0030] = 0x00;

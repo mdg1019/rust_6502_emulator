@@ -68,11 +68,12 @@ const CPX_INSTRUCTION: &str = "CPX";
 const CPY_INSTRUCTION: &str = "CPY";
 const DEC_INSTRUCTION: &str = "DEC";
 const DEX_INSTRUCTION: &str = "DEX";
+const DEY_INSTRUCTION: &str = "DEY";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 65] = [
+pub const INSTRUCTION_SET: [Instruction; 66] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -351,6 +352,15 @@ pub const INSTRUCTION_SET: [Instruction; 65] = [
         addressing_mode: AddressingMode::AbsoluteX,
         sets_program_counter: false,
         execute: Cpu::adc_instruction,
+    },
+    Instruction {
+        opcode: 0x88,
+        mnemonic: DEY_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::dey_instruction,
     },
     Instruction {
         opcode: 0x90,

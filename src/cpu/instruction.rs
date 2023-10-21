@@ -67,11 +67,12 @@ const CMP_INSTRUCTION: &str = "CMP";
 const CPX_INSTRUCTION: &str = "CPX";
 const CPY_INSTRUCTION: &str = "CPY";
 const DEC_INSTRUCTION: &str = "DEC";
+const DEX_INSTRUCTION: &str = "DEX";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 64] = [
+pub const INSTRUCTION_SET: [Instruction; 65] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -503,6 +504,15 @@ pub const INSTRUCTION_SET: [Instruction; 64] = [
         addressing_mode: AddressingMode::Immediate,
         sets_program_counter: false,
         execute: Cpu::cmp_instruction,
+    },
+    Instruction {
+        opcode: 0xCA,
+        mnemonic: DEX_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::dex_instruction,
     },
     Instruction {
         opcode: 0xCC,

@@ -11,6 +11,7 @@ pub enum AddressingMode {
     Absolute,
     AbsoluteX,
     AbsoluteY,
+    Indirect,
     IndirectX, // (Zero-Page,X)
     IndirectY, // (Zero-Page),Y
 }
@@ -78,7 +79,7 @@ const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 81] = [
+pub const INSTRUCTION_SET: [Instruction; 82] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -384,6 +385,15 @@ pub const INSTRUCTION_SET: [Instruction; 81] = [
         addressing_mode: AddressingMode::Immediate,
         sets_program_counter: false,
         execute: Cpu::adc_instruction,
+    },
+    Instruction {
+        opcode: 0x6C,
+        mnemonic: JMP_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 5,
+        addressing_mode: AddressingMode::Indirect,
+        sets_program_counter: true,
+        execute: Cpu::jmp_instruction,
     },
     Instruction {
         opcode: 0x6D,

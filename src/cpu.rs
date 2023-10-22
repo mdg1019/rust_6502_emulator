@@ -82,6 +82,9 @@ impl Cpu {
             AddressingMode::AbsoluteY => {
                 format!("${:04X},Y", self.memory.get_16_bit_value(location + 1))
             }
+            AddressingMode::Indirect => {
+                format!("(${:04X})", self.memory.get_16_bit_value(location + 1) as usize)
+            }
             AddressingMode::IndirectX => {
                 format!("(${:02X},X)", self.memory.get_8_bit_value(location + 1))
             }
@@ -158,6 +161,12 @@ impl Cpu {
                     address as usize + self.registers.y as usize,
                     Cpu::crosses_boundary_by_address_offset(address, self.registers.y),
                 )
+            }
+            AddressingMode::Indirect => {
+                let indirect_address = self.memory.get_16_bit_value((self.registers.pc + 1) as usize);
+                let address = self.memory.get_16_bit_value(indirect_address as usize);
+
+                (address as usize, false)
             }
             AddressingMode::IndirectX => {
                 let indirect_address = self
@@ -1959,6 +1968,29 @@ mod tests {
     }
 
     #[test]
+    fn test_6c_jmp_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3000] = 0x00;
+        cpu.memory.contents[0x3001] = 0x40;
+        cpu.memory.contents[0x8000] = 0x6C;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x4000);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 5);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_6d_adc_absolute_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0x40;
@@ -1990,7 +2022,7 @@ mod tests {
     }
 
     #[test]
-    fn test_b7_bvs_relative_instruction_with_overflow_not_set() {
+    fn test_70_bvs_relative_instruction_with_overflow_not_set() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.p.overflow_flag = false;
         cpu.registers.pc = 0x8000;

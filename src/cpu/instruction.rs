@@ -71,11 +71,12 @@ const DEX_INSTRUCTION: &str = "DEX";
 const DEY_INSTRUCTION: &str = "DEY";
 const EOR_INSTRUCTION: &str = "EOR";
 const INC_INSTRUCTION: &str = "INC";
+const INX_INSTRUCTION: &str = "INX";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 78] = [
+pub const INSTRUCTION_SET: [Instruction; 79] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -723,6 +724,15 @@ pub const INSTRUCTION_SET: [Instruction; 78] = [
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
         execute: Cpu::inc_instruction,
+    },
+    Instruction {
+        opcode: 0xE8,
+        mnemonic: INX_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::inx_instruction,
     },
     Instruction {
         opcode: 0xE9,

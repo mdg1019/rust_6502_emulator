@@ -527,6 +527,17 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
+    pub fn iny_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let result = self.registers.y.wrapping_add(1);
+
+        self.set_negative_flag(result);
+        self.set_zero_flag(result);
+
+        self.registers.y = result;
+
+        ExecutionReturnValues::new(instruction, false)
+    }
+
     pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = true;
 
@@ -2607,6 +2618,30 @@ mod tests {
         assert!(!cpu.registers.p.zero_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_c8_iny_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.y = 0xFF;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xC8;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.y, 0x00);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.zero_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
         assert!(!return_values.set_program_counter);
     }
 

@@ -75,11 +75,12 @@ const INC_INSTRUCTION: &str = "INC";
 const INX_INSTRUCTION: &str = "INX";
 const INY_INSTRUCTION: &str = "INY";
 const JMP_INSTRUCTION: &str = "JMP";
+const JSR_INSTRUCTION: &str = "JSR";
 const LDA_INSTRUCTION: &str = "LDA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 82] = [
+pub const INSTRUCTION_SET: [Instruction; 83] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -151,6 +152,15 @@ pub const INSTRUCTION_SET: [Instruction; 82] = [
         addressing_mode: AddressingMode::AbsoluteX,
         sets_program_counter: false,
         execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x20,
+        mnemonic: JSR_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::Absolute,
+        sets_program_counter: true,
+        execute: Cpu::jsr_instruction,
     },
     Instruction {
         opcode: 0x21,

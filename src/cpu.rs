@@ -554,6 +554,16 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, false)
     }
+    
+    pub fn jsr_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (address, _) = self.get_address(instruction);
+
+        self.push_u16(self.registers.pc + 2);
+
+        self.registers.pc = address as u16;
+
+        ExecutionReturnValues::new(instruction, false)
+    }
 
     pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = true;
@@ -1028,6 +1038,31 @@ mod tests {
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 7);
         assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_20_jsr_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.sp = 0xFF;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x20;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x3000);
+        assert_eq!(cpu.registers.sp, 0xFD);
+        assert_eq!(cpu.memory.contents[0x01FE], 0x02);
+        assert_eq!(cpu.memory.contents[0x01FF], 0x80);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 6);
+        assert!(return_values.set_program_counter);
     }
 
     #[test]

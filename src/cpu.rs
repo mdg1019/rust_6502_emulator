@@ -1523,6 +1523,7 @@ mod tests {
     #[test]
     fn test_46_lsr_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
         cpu.registers.pc = 0x8000;
@@ -1538,6 +1539,7 @@ mod tests {
         let return_values = option_return_values.unwrap();
 
         assert_eq!(cpu.memory.contents[0x0030], 0x67);
+        assert!(cpu.registers.p.carry_flag);
         assert!(!cpu.registers.p.zero_flag);
         assert!(!cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
@@ -1574,6 +1576,7 @@ mod tests {
     fn test_4a_lsr_accumulator_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0xCF;
+        cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
         cpu.registers.pc = 0x8000;
@@ -1587,6 +1590,7 @@ mod tests {
         let return_values = option_return_values.unwrap();
 
         assert_eq!(cpu.registers.a, 0x67);
+        assert!(cpu.registers.p.carry_flag);
         assert!(!cpu.registers.p.zero_flag);
         assert!(!cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 1);
@@ -1645,6 +1649,7 @@ mod tests {
     #[test]
     fn test_4e_lsr_absolute_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
         cpu.registers.pc = 0x8000;
@@ -1661,6 +1666,7 @@ mod tests {
         let return_values = option_return_values.unwrap();
 
         assert_eq!(cpu.memory.contents[0x3000], 0x67);
+        assert!(cpu.registers.p.carry_flag);
         assert!(!cpu.registers.p.zero_flag);
         assert!(!cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
@@ -1770,6 +1776,7 @@ mod tests {
     fn test_56_lsr_zero_page_x_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.x = 0x02;
+        cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
         cpu.registers.pc = 0x8000;
@@ -1785,6 +1792,7 @@ mod tests {
         let return_values = option_return_values.unwrap();
 
         assert_eq!(cpu.memory.contents[0x0032], 0x67);
+        assert!(cpu.registers.p.carry_flag);
         assert!(!cpu.registers.p.zero_flag);
         assert!(!cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);

@@ -82,10 +82,11 @@ const LDX_INSTRUCTION: &str = "LDX";
 const LDY_INSTRUCTION: &str = "LDY";
 const LSR_INSTRUCTION: &str = "LSR";
 const NOP_INSTRUCTION: &str = "NOP";
+const ORA_INSTRUCTION: &str = "ORA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 99] = [
+pub const INSTRUCTION_SET: [Instruction; 100] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -103,6 +104,15 @@ pub const INSTRUCTION_SET: [Instruction; 99] = [
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
         execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x09,
+        mnemonic: ORA_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Immediate,
+        sets_program_counter: false,
+        execute: Cpu::ora_instruction,
     },
     Instruction {
         opcode: 0x0A,

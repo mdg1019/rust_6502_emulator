@@ -2385,6 +2385,32 @@ mod tests {
     }
 
     #[test]
+    fn test_a2_ldx_zero_page_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.x = 0x00;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0xFF;
+        cpu.memory.contents[0x8000] = 0xA6;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.x, 0xff);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_a9_lda_immediate_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
 

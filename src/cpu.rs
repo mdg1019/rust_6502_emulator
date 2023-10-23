@@ -604,10 +604,21 @@ impl Cpu {
     pub fn lda_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
+        self.set_zero_flag(value);
+        self.set_negative_flag(value);
+
         self.registers.a = value;
 
-        self.set_zero_flag(self.registers.a);
-        self.set_negative_flag(self.registers.a);
+        ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
+
+    pub fn ldx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (value, crossed_boundary) = self.get_value(instruction);
+
+        self.set_negative_flag(value);
+        self.set_zero_flag(value);
+
+        self.registers.x = value;
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
@@ -2293,6 +2304,31 @@ mod tests {
     }
 
     #[test]
+    fn test_a2_ldx_immediate_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.x = 0x00;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xA2;
+        cpu.memory.contents[0x8001] = 0xFF;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.x, 0xff);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_a5_lda_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
 
@@ -2301,8 +2337,8 @@ mod tests {
         cpu.registers.p.negative_flag = false;
         cpu.registers.pc = 0x8000;
 
-        cpu.memory.contents[0x50] = 0xff;
-        cpu.memory.contents[0x8000] = 0xa5;
+        cpu.memory.contents[0x50] = 0xFF;
+        cpu.memory.contents[0x8000] = 0xA5;
         cpu.memory.contents[0x8001] = 0x50;
 
         let option_return_values = cpu.execute_opcode();
@@ -2311,7 +2347,7 @@ mod tests {
 
         let return_values = option_return_values.unwrap();
 
-        assert_eq!(cpu.registers.a, 0xff);
+        assert_eq!(cpu.registers.a, 0xFF);
         assert!(!cpu.registers.p.zero_flag);
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);

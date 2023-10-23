@@ -86,7 +86,7 @@ const ORA_INSTRUCTION: &str = "ORA";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 102] = [
+pub const INSTRUCTION_SET: [Instruction; 103] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -131,6 +131,15 @@ pub const INSTRUCTION_SET: [Instruction; 102] = [
         addressing_mode: AddressingMode::Accumulator,
         sets_program_counter: false,
         execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x0D,
+        mnemonic: ORA_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::Absolute,
+        sets_program_counter: false,
+        execute: Cpu::ora_instruction,
     },
     Instruction {
         opcode: 0x0e,

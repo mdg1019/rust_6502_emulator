@@ -8,12 +8,13 @@ pub enum AddressingMode {
     Immediate,
     ZeroPage,
     ZeroPageX,
+    ZeroPageY,
     Absolute,
     AbsoluteX,
     AbsoluteY,
     Indirect,
     IndirectX, // (Zero-Page,X)
-    IndirectY, // (Zero-Page),Y
+    IndirectY, // (Zero-Page),Ys
 }
 
 #[derive(Debug)]
@@ -81,7 +82,7 @@ const LDX_INSTRUCTION: &str = "LDX";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 85] = [
+pub const INSTRUCTION_SET: [Instruction; 86] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -558,6 +559,15 @@ pub const INSTRUCTION_SET: [Instruction; 85] = [
         addressing_mode: AddressingMode::ZeroPageX,
         sets_program_counter: false,
         execute: Cpu::lda_instruction,
+    },
+    Instruction {
+        opcode: 0xB6,
+        mnemonic: LDX_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::ZeroPageY,
+        sets_program_counter: false,
+        execute: Cpu::ldx_instruction,
     },
     Instruction {
         opcode: 0xB8,

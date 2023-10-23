@@ -632,6 +632,17 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
+
+    pub fn ldy_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (value, crossed_boundary) = self.get_value(instruction);
+
+        self.set_negative_flag(value);
+        self.set_zero_flag(value);
+
+        self.registers.y = value;
+
+        ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
 }
 
 #[cfg(test)]
@@ -2311,6 +2322,31 @@ mod tests {
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 2);
         assert!(return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_a0_ldy_immediate_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.y = 0x00;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xA0;
+        cpu.memory.contents[0x8001] = 0xFF;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.y, 0xFF);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
     }
 
     #[test]

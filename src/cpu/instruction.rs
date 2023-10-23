@@ -79,10 +79,11 @@ const JMP_INSTRUCTION: &str = "JMP";
 const JSR_INSTRUCTION: &str = "JSR";
 const LDA_INSTRUCTION: &str = "LDA";
 const LDX_INSTRUCTION: &str = "LDX";
+const LDY_INSTRUCTION: &str = "LDY";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 88] = [
+pub const INSTRUCTION_SET: [Instruction; 89] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -478,6 +479,15 @@ pub const INSTRUCTION_SET: [Instruction; 88] = [
         addressing_mode: AddressingMode::Relative,
         sets_program_counter: true,
         execute: Cpu::bcc_instruction,
+    },
+    Instruction {
+        opcode: 0xA0,
+        mnemonic: LDY_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Immediate,
+        sets_program_counter: false,
+        execute: Cpu::ldy_instruction,
     },
     Instruction {
         opcode: 0xA1,

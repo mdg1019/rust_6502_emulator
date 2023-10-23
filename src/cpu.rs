@@ -690,6 +690,12 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
+
+    pub fn pha_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.push_u8(self.registers.a);
+
+        ExecutionReturnValues::new(instruction, false)
+    }
 }
 
 #[cfg(test)]
@@ -1781,6 +1787,29 @@ mod tests {
         assert!(!cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_48_pha_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0xFF;
+        cpu.registers.sp = 0xFF;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01FF] = 0x00;
+        cpu.memory.contents[0x8000] = 0x48;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x01FF], 0xFF);
+        assert_eq!(cpu.registers.sp, 0xFE);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 3);
         assert!(!return_values.set_program_counter);
     }
 

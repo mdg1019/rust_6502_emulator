@@ -80,10 +80,11 @@ const JSR_INSTRUCTION: &str = "JSR";
 const LDA_INSTRUCTION: &str = "LDA";
 const LDX_INSTRUCTION: &str = "LDX";
 const LDY_INSTRUCTION: &str = "LDY";
+const LSR_INSTRUCTION: &str = "LSR";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 93] = [
+pub const INSTRUCTION_SET: [Instruction; 94] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -299,6 +300,15 @@ pub const INSTRUCTION_SET: [Instruction; 93] = [
         addressing_mode: AddressingMode::Immediate,
         sets_program_counter: false,
         execute: Cpu::eor_instruction,
+    },
+    Instruction {
+        opcode: 0x4A,
+        mnemonic: LSR_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Accumulator,
+        sets_program_counter: false,
+        execute: Cpu::lsr_instruction,
     },
     Instruction {
         opcode: 0x4C,

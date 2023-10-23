@@ -643,12 +643,40 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
+
+    pub fn lsr_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (address, value, crossed_boundary): (Option<usize>, u8, bool) =
+            match instruction.addressing_mode {
+                AddressingMode::Accumulator => (None, self.registers.a, false),
+                _ => {
+                    let (address, crossed_boundary) = self.get_address(instruction);
+                    (
+                        Some(address),
+                        self.memory.contents[address],
+                        crossed_boundary,
+                    )
+                }
+            };
+
+        self.registers.p.carry_flag = value & 0x01 == 0x01;
+
+        let result = (value >> 1) & 0x7F;
+
+        self.registers.p.negative_flag = false;
+        self.set_zero_flag(result);
+
+        if address.is_none() {
+            self.registers.a = result;
+        } else {
+            self.memory.contents[address.unwrap()] = result;
+        }
+
+        ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::option;
-
     use super::*;
 
     #[test]
@@ -1513,6 +1541,30 @@ mod tests {
         assert!(!cpu.registers.p.zero_flag);
         assert!(!cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_4a_lsr_accumulator_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0xCF;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x4A;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x67);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
         assert!(!return_values.set_program_counter);
     }

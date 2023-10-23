@@ -84,7 +84,7 @@ const LSR_INSTRUCTION: &str = "LSR";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 95] = [
+pub const INSTRUCTION_SET: [Instruction; 96] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -363,6 +363,15 @@ pub const INSTRUCTION_SET: [Instruction; 95] = [
         addressing_mode: AddressingMode::ZeroPageX,
         sets_program_counter: false,
         execute: Cpu::eor_instruction,
+    },
+    Instruction {
+        opcode: 0x56,
+        mnemonic: LSR_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::ZeroPageX,
+        sets_program_counter: false,
+        execute: Cpu::lsr_instruction,
     },
     Instruction {
         opcode: 0x58,

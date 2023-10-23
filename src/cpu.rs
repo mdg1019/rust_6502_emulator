@@ -1149,6 +1149,35 @@ mod tests {
     }
 
     #[test]
+    fn test_11_ora_indirect_y_instruction_carry() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x22;
+        cpu.registers.y = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0x00;
+        cpu.memory.contents[0x0031] = 0x30;
+        cpu.memory.contents[0x3002] = 0x55;
+        cpu.memory.contents[0x8000] = 0x11;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x77);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_15_ora_zero_page_x_instruction_carry() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0x22;

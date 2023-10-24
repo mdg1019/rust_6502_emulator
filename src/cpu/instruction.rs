@@ -91,7 +91,7 @@ const ROL_INSTRUCTION: &str = "ROL";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 114] = [
+pub const INSTRUCTION_SET: [Instruction; 115] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -318,7 +318,7 @@ pub const INSTRUCTION_SET: [Instruction; 114] = [
         execute: Cpu::rol_instruction,
     },
     Instruction {
-        opcode: 0x2c,
+        opcode: 0x2C,
         mnemonic: BIT_INSTRUCTION,
         bytes: 3,
         clock_periods: 4,
@@ -327,13 +327,22 @@ pub const INSTRUCTION_SET: [Instruction; 114] = [
         execute: Cpu::bit_instruction,
     },
     Instruction {
-        opcode: 0x2d,
+        opcode: 0x2D,
         mnemonic: AND_INSTRUCTION,
         bytes: 3,
         clock_periods: 4,
         addressing_mode: AddressingMode::Absolute,
         sets_program_counter: false,
         execute: Cpu::and_instruction,
+    },
+    Instruction {
+        opcode: 0x2E,
+        mnemonic: ROL_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::Absolute,
+        sets_program_counter: false,
+        execute: Cpu::rol_instruction,
     },
     Instruction {
         opcode: 0x30,

@@ -1584,7 +1584,7 @@ mod tests {
     }
 
     #[test]
-    fn test_26_rol_accumulator_instruction() {
+    fn test_26_rol_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -1767,6 +1767,34 @@ mod tests {
     }
 
     #[test]
+    fn test_2e_rol_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3000] = 0xCF;
+        cpu.memory.contents[0x8000] = 0x2E;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x3000], 0x9F);
+        assert!(cpu.registers.p.carry_flag);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_30_bmi_relative_instruction_with_negative_not_set() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.p.negative_flag = false;
@@ -1866,7 +1894,7 @@ mod tests {
     }
 
     #[test]
-    fn test_36_rol_accumulator_instruction() {
+    fn test_36_rol_zero_page_x_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.x = 0x02;
         cpu.registers.p.carry_flag = true;

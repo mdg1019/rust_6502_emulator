@@ -84,10 +84,11 @@ const LSR_INSTRUCTION: &str = "LSR";
 const NOP_INSTRUCTION: &str = "NOP";
 const ORA_INSTRUCTION: &str = "ORA";
 const PHA_INSTRUCTION: &str = "PHA";
+const PHP_INSTRUCTION: &str = "PHP";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 108] = [
+pub const INSTRUCTION_SET: [Instruction; 109] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -123,6 +124,15 @@ pub const INSTRUCTION_SET: [Instruction; 108] = [
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
         execute: Cpu::asl_instruction,
+    },
+    Instruction {
+        opcode: 0x08,
+        mnemonic: PHP_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 3,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::php_instruction,
     },
     Instruction {
         opcode: 0x09,

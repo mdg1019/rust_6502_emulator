@@ -1,6 +1,14 @@
 mod status_flags;
 
 use status_flags::StatusFlags;
+pub use status_flags::BREAK_FLAG;
+pub use status_flags::CARRY_FLAG;
+pub use status_flags::DECIMAL_FLAG;
+pub use status_flags::INTERRUPT_FLAG;
+pub use status_flags::NEGATIVE_FLAG;
+pub use status_flags::OVERFLOW_FLAG;
+pub use status_flags::UNUSED_FLAG;
+pub use status_flags::ZERO_FLAG;
 
 pub struct Registers {
     pub a: u8,

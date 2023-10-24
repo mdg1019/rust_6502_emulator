@@ -86,10 +86,11 @@ const ORA_INSTRUCTION: &str = "ORA";
 const PHA_INSTRUCTION: &str = "PHA";
 const PHP_INSTRUCTION: &str = "PHP";
 const PLA_INSTRUCTION: &str = "PLA";
+const PLP_INSTRUCTION: &str = "PLP";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 110] = [
+pub const INSTRUCTION_SET: [Instruction; 111] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -278,6 +279,15 @@ pub const INSTRUCTION_SET: [Instruction; 110] = [
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
         execute: Cpu::and_instruction,
+    },
+    Instruction {
+        opcode: 0x28,
+        mnemonic: PLP_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::plp_instruction,
     },
     Instruction {
         opcode: 0x29,

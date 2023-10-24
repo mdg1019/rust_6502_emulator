@@ -725,6 +725,19 @@ impl Cpu {
     pub fn pla_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.a = self.pull_u8();
 
+        self.set_negative_flag(self.registers.a);
+        self.set_zero_flag(self.registers.a);
+
+        ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn plp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let mut flags = self.pull_u8();
+
+        flags &= !registers::BREAK_FLAG;
+
+        self.registers.p.from_byte(flags);
+
         ExecutionReturnValues::new(instruction, false)
     }
 }
@@ -1535,6 +1548,29 @@ mod tests {
     }
 
     #[test]
+    fn test_28_plp_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.break_flag = true;
+        cpu.registers.sp = 0xFE;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01FF] = registers::UNUSED_FLAG | registers::BREAK_FLAG;
+        cpu.memory.contents[0x8000] = 0x28;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.sp, 0xFF);
+        assert!(!cpu.registers.p.break_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_29_and_immediate_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0xef;
@@ -2320,6 +2356,8 @@ mod tests {
     fn test_68_pla_implied_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0x00;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.p.zero_flag = true;
         cpu.registers.sp = 0xFE;
         cpu.registers.pc = 0x8000;
 
@@ -2334,6 +2372,8 @@ mod tests {
 
         assert_eq!(cpu.registers.a, 0xFF);
         assert_eq!(cpu.registers.sp, 0xFF);
+        assert!(cpu.registers.p.negative_flag);
+        assert!(!cpu.registers.p.zero_flag);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 4);
         assert!(!return_values.set_program_counter);

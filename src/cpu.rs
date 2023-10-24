@@ -3033,6 +3033,34 @@ mod tests {
     }
 
     #[test]
+    fn test_6e_ror_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3000] = 0xCF;
+        cpu.memory.contents[0x8000] = 0x6E;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x3000], 0xE7);
+        assert!(cpu.registers.p.carry_flag);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_70_bvs_relative_instruction_with_overflow_not_set() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.p.overflow_flag = false;

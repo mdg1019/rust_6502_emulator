@@ -91,7 +91,7 @@ const ROL_INSTRUCTION: &str = "ROL";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 113] = [
+pub const INSTRUCTION_SET: [Instruction; 114] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -361,6 +361,15 @@ pub const INSTRUCTION_SET: [Instruction; 113] = [
         addressing_mode: AddressingMode::ZeroPageX,
         sets_program_counter: false,
         execute: Cpu::and_instruction,
+    },
+    Instruction {
+        opcode: 0x36,
+        mnemonic: ROL_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::ZeroPageX,
+        sets_program_counter: false,
+        execute: Cpu::rol_instruction,
     },
     Instruction {
         opcode: 0x38,

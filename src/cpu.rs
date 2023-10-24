@@ -259,6 +259,22 @@ impl Cpu {
         }
     }
 
+    pub fn pull_u8(&mut self) -> u8 {
+        self.registers.sp = self.registers.sp.wrapping_add(1);
+
+        let address = 0x0100 + self.registers.sp as usize;
+
+        self.memory.get_8_bit_value(address)
+    }
+
+    pub fn pull_u16(&mut self) -> u16 {
+        self.registers.sp = self.registers.sp.wrapping_add(2);
+
+        let address = 0x0100 + self.registers.sp as usize - 1;
+
+        self.memory.get_16_bit_value(address)
+    }
+
     pub fn push_u8(&mut self, value: u8) {
         let stack_pointer: usize = STACK_BASE_ADDRESS + self.registers.sp as usize;
 
@@ -705,6 +721,12 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, false)
     }
+
+    pub fn pla_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.registers.a = self.pull_u8();
+
+        ExecutionReturnValues::new(instruction, false)
+    }
 }
 
 #[cfg(test)]
@@ -799,6 +821,35 @@ mod tests {
     #[test]
     fn test_crosses_boundary_crossed() {
         assert!(Cpu::crosses_boundary_by_address_offset(0x1fff, 0x01));
+    }
+
+    #[test]
+    fn test_pull_u8() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.sp = 0xFE;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01FF] = 0xFF;
+
+        let result = cpu.pull_u8();
+
+        assert_eq!(cpu.registers.sp, 0xFF);
+        assert_eq!(result, 0xFF);
+    }
+    
+    #[test]
+    fn test_pull_u16() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.sp = 0xFD;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01FE] = 0xFF;
+        cpu.memory.contents[0x01FF] = 0x20;
+        
+        let result = cpu.pull_u16();
+
+        assert_eq!(cpu.registers.sp, 0xFF);
+        assert_eq!(result, 0x20FF);
     }
 
     #[test]
@@ -2262,6 +2313,29 @@ mod tests {
         assert!(!cpu.registers.p.carry_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_68_pla_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0x00;
+        cpu.registers.sp = 0xFE;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01FF] = 0xFF;
+        cpu.memory.contents[0x8000] = 0x68;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0xFF);
+        assert_eq!(cpu.registers.sp, 0xFF);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 4);
         assert!(!return_values.set_program_counter);
     }
 

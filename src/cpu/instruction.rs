@@ -90,10 +90,11 @@ const PLP_INSTRUCTION: &str = "PLP";
 const ROL_INSTRUCTION: &str = "ROL";
 const ROR_INSTRUCTION: &str = "ROR";
 const RTI_INSTRUCTION: &str = "RTI";
+const RTS_INSTRUCTION: &str = "RTS";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 
-pub const INSTRUCTION_SET: [Instruction; 122] = [
+pub const INSTRUCTION_SET: [Instruction; 123] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -579,6 +580,15 @@ pub const INSTRUCTION_SET: [Instruction; 122] = [
         addressing_mode: AddressingMode::AbsoluteX,
         sets_program_counter: false,
         execute: Cpu::lsr_instruction,
+    },
+    Instruction {
+        opcode: 0x60,
+        mnemonic: RTS_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: true,
+        execute: Cpu::rts_instruction,
     },
     Instruction {
         opcode: 0x61,

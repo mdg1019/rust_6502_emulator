@@ -269,7 +269,7 @@ impl Cpu {
 
     pub fn pull_u16(&mut self) -> u16 {
         self.registers.sp = self.registers.sp.wrapping_add(2);
-
+        
         let address = 0x0100 + self.registers.sp as usize - 1;
 
         self.memory.get_16_bit_value(address)
@@ -811,6 +811,20 @@ impl Cpu {
         }
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
+
+    pub fn rti_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let mut flags = self.pull_u8();
+
+        flags &= !registers::BREAK_FLAG;
+
+        self.registers.p.from_byte(flags);
+
+        let address = self.pull_u16();
+
+        self.registers.pc = address;
+
+        ExecutionReturnValues::new(instruction, false)
     }
 }
 
@@ -2112,6 +2126,32 @@ mod tests {
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 7);
         assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_40_rti_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.break_flag = true;
+        cpu.registers.sp = 0xFC;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x01FD] = registers::UNUSED_FLAG | registers::BREAK_FLAG;
+        cpu.memory.contents[0x01FE] = 0x03;
+        cpu.memory.contents[0x01FF] = 0x30;
+        cpu.memory.contents[0x8000] = 0x40;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.sp, 0xFF);
+        assert_eq!(cpu.registers.pc, 0x3003);
+        assert!(!cpu.registers.p.break_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 6);
+        assert!(return_values.set_program_counter);
     }
 
     #[test]

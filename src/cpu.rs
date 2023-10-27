@@ -591,42 +591,6 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        self.registers.p.carry_flag = true;
-
-        ExecutionReturnValues::new(instruction, false)
-    }
-
-    pub fn sbc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        let (value, crossed_boundary) = self.get_value(instruction);
-
-        let carry = match self.registers.p.carry_flag {
-            true => 0u16,
-            false => 1u16,
-        };
-
-        let mut result = (self.registers.a as u16).wrapping_sub(value as u16 + carry);
-
-        if self.registers.p.decimal_flag {
-            if (self.registers.a & 0x0f) < (value & 0x0f) + carry as u8 {
-                result -= 6;
-            }
-
-            if result & 0xFF > 0x99 {
-                result -= 96;
-            }
-        }
-
-        self.set_zero_flag(result as u8);
-        self.set_negative_flag(result as u8);
-        self.set_overflow_flag(self.registers.a, !value, result as u8);
-        self.set_carry_flag(!result);
-
-        self.registers.a = result as u8;
-
-        ExecutionReturnValues::new(instruction, crossed_boundary)
-    }
-
     pub fn lda_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
@@ -831,6 +795,48 @@ impl Cpu {
         let address = self.pull_u16();
 
         self.registers.pc = address + 1;
+
+        ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn sbc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (value, crossed_boundary) = self.get_value(instruction);
+
+        let carry = match self.registers.p.carry_flag {
+            true => 0u16,
+            false => 1u16,
+        };
+
+        let mut result = (self.registers.a as u16).wrapping_sub(value as u16 + carry);
+
+        if self.registers.p.decimal_flag {
+            if (self.registers.a & 0x0f) < (value & 0x0f) + carry as u8 {
+                result -= 6;
+            }
+
+            if result & 0xFF > 0x99 {
+                result -= 96;
+            }
+        }
+
+        self.set_zero_flag(result as u8);
+        self.set_negative_flag(result as u8);
+        self.set_overflow_flag(self.registers.a, !value, result as u8);
+        self.set_carry_flag(!result);
+
+        self.registers.a = result as u8;
+
+        ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
+
+    pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.registers.p.carry_flag = true;
+
+        ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn sed_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.registers.p.decimal_flag = true;
 
         ExecutionReturnValues::new(instruction, false)
     }
@@ -4943,6 +4949,26 @@ mod tests {
         assert!(cpu.registers.p.zero_flag);
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_f8_sed_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.decimal_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xF8;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert!(cpu.registers.p.decimal_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
         assert!(!return_values.set_program_counter);
     }
 

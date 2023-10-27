@@ -3533,6 +3533,29 @@ mod tests {
     }
 
     #[test]
+    fn test_8d_sta_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0xFF;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3000] = 0x00;
+        cpu.memory.contents[0x8000] = 0x8D;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x3000], 0xFF);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_8e_stx_absolute_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.x = 0xFF;
@@ -3577,6 +3600,27 @@ mod tests {
     }
 
     #[test]
+    fn test_90_bcc_relative_instruction_with_carry_set() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x90;
+        cpu.memory.contents[0x8001] = 0x02;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.pc, 0x8002);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_91_sta_indirect_y_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0xFF;
@@ -3602,15 +3646,15 @@ mod tests {
     }
 
     #[test]
-    fn test_8d_sta_absolute_instruction() {
+    fn test_94_sty_zero_page_x_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
-        cpu.registers.a = 0xFF;
+        cpu.registers.y = 0xFF;
+        cpu.registers.x = 0x02;
         cpu.registers.pc = 0x8000;
 
-        cpu.memory.contents[0x3000] = 0x00;
-        cpu.memory.contents[0x8000] = 0x8D;
-        cpu.memory.contents[0x8001] = 0x00;
-        cpu.memory.contents[0x8002] = 0x30;
+        cpu.memory.contents[0x0032] = 0x00;
+        cpu.memory.contents[0x8000] = 0x94;
+        cpu.memory.contents[0x8001] = 0x30;
 
         let option_return_values = cpu.execute_opcode();
 
@@ -3618,31 +3662,10 @@ mod tests {
 
         let return_values = option_return_values.unwrap();
 
-        assert_eq!(cpu.memory.contents[0x3000], 0xFF);
-        assert_eq!(return_values.bytes, 3);
+        assert_eq!(cpu.memory.contents[0x0032], 0xFF);
+        assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 4);
         assert!(!return_values.set_program_counter);
-    }
-
-    #[test]
-    fn test_90_bcc_relative_instruction_with_carry_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
-        cpu.registers.p.carry_flag = true;
-        cpu.registers.pc = 0x8000;
-
-        cpu.memory.contents[0x8000] = 0x90;
-        cpu.memory.contents[0x8001] = 0x02;
-
-        let option_return_values = cpu.execute_opcode();
-
-        assert!(option_return_values.is_some());
-
-        let return_values = option_return_values.unwrap();
-
-        assert_eq!(cpu.registers.pc, 0x8002);
-        assert_eq!(return_values.bytes, 2);
-        assert_eq!(return_values.clock_periods, 2);
-        assert!(return_values.set_program_counter);
     }
 
     #[test]

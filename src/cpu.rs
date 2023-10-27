@@ -3502,6 +3502,29 @@ mod tests {
     }
 
     #[test]
+    fn test_8e_stx_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.x = 0xFF;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3000] = 0x00;
+        cpu.memory.contents[0x8000] = 0x8E;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x3000], 0xFF);
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_90_bcc_relative_instruction_with_carry_not_set() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.p.carry_flag = false;

@@ -848,12 +848,21 @@ impl Cpu {
     }
 
     pub fn sta_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        let (address, crossed_boundary) = self.get_address(instruction);
+        let (address, _) = self.get_address(instruction);
 
 
         self.memory.set_8_bit_value(address, self.registers.a);
 
-        ExecutionReturnValues::new(instruction, crossed_boundary)
+        ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn stx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (address, _) = self.get_address(instruction);
+
+
+        self.memory.set_8_bit_value(address, self.registers.x);
+
+        ExecutionReturnValues::new(instruction, false)
     }
 }
 
@@ -3432,6 +3441,28 @@ mod tests {
 
         cpu.memory.contents[0x0030] = 0x00;
         cpu.memory.contents[0x8000] = 0x85;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x0030], 0xFF);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_86_stx_zero_page_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.x = 0xFF;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0x00;
+        cpu.memory.contents[0x8000] = 0x86;
         cpu.memory.contents[0x8001] = 0x30;
 
         let option_return_values = cpu.execute_opcode();

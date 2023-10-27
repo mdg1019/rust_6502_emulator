@@ -840,6 +840,21 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, false)
     }
+
+    pub fn sei_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.registers.p.interrupt_disable_flag = true;
+
+        ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn sta_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        let (address, crossed_boundary) = self.get_address(instruction);
+
+
+        self.memory.set_8_bit_value(address, self.registers.a);
+
+        ExecutionReturnValues::new(instruction, crossed_boundary)
+    }
 }
 
 #[cfg(test)]
@@ -3272,6 +3287,26 @@ mod tests {
     }
 
     #[test]
+    fn test_78_sei_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.p.interrupt_disable_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0x78;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert!(cpu.registers.p.interrupt_disable_flag);
+        assert_eq!(return_values.bytes, 1);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_79_adc_absolute_y_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000);
         cpu.registers.a = 0x40;
@@ -3361,6 +3396,28 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 7);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_85_sta_zero_page_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+        cpu.registers.a = 0xFF;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0x00;
+        cpu.memory.contents[0x8000] = 0x85;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.memory.contents[0x0030], 0xFF);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 3);
         assert!(!return_values.set_program_counter);
     }
 

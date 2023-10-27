@@ -94,8 +94,10 @@ const RTS_INSTRUCTION: &str = "RTS";
 const SBC_INSTRUCTION: &str = "SBC";
 const SEC_INSTRUCTION: &str = "SEC";
 const SED_INSTRUCTION: &str = "SED";
+const SEI_INSTRUCTION: &str = "SEI";
+const STA_INSTRUCTION: &str = "STA";
 
-pub const INSTRUCTION_SET: [Instruction; 124] = [
+pub const INSTRUCTION_SET: [Instruction; 126] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -709,6 +711,15 @@ pub const INSTRUCTION_SET: [Instruction; 124] = [
         execute: Cpu::ror_instruction,
     },
     Instruction {
+        opcode: 0x78,
+        mnemonic: SEI_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::sei_instruction,
+    },
+    Instruction {
         opcode: 0x79,
         mnemonic: ADC_INSTRUCTION,
         bytes: 3,
@@ -734,6 +745,15 @@ pub const INSTRUCTION_SET: [Instruction; 124] = [
         addressing_mode: AddressingMode::AbsoluteX,
         sets_program_counter: false,
         execute: Cpu::ror_instruction,
+    },
+    Instruction {
+        opcode: 0x85,
+        mnemonic: STA_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 3,
+        addressing_mode: AddressingMode::ZeroPage,
+        sets_program_counter: false,
+        execute: Cpu::sta_instruction,
     },
     Instruction {
         opcode: 0x88,

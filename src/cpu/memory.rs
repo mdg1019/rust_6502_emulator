@@ -1,40 +1,61 @@
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 
 const SIXTY_FOUR_K_BYTES: usize = 64 * 1024;
 
+pub struct RomRegion {
+    pub start: usize,
+    pub end: usize,
+}
+
 pub struct Memory {
     pub contents: [u8; SIXTY_FOUR_K_BYTES],
+    pub rom_regions: Vec<RomRegion>,
 }
 
 impl Memory {
     pub fn new() -> Memory {
         Memory {
             contents: [0x00u8; SIXTY_FOUR_K_BYTES],
+            rom_regions: Vec::new(),
         }
     }
 
-    pub fn get_8_bit_value(&self, location: usize) -> u8 {
-        self.contents[location]
+    pub fn is_in_rom_region(&mut self, address: usize) -> bool {
+        for rom_region in &self.rom_regions {
+            if address >= rom_region.start && address <= rom_region.end {
+                return true;
+            }
+        }
+
+        false
     }
 
-    pub fn set_8_bit_value(&mut self, location: usize, value: u8) {
-        self.contents[location] = value;
+    pub fn get_8_bit_value(&self, address: usize) -> u8 {
+        self.contents[address]
     }
 
-    pub fn get_16_bit_value(&self, location: usize) -> u16 {
-        let lsb = self.contents[location];
-        let msb = self.contents[location + 1];
+    pub fn set_8_bit_value(&mut self, address: usize, value: u8) {
+        if !self.is_in_rom_region(address) {
+            self.contents[address] = value;
+        }
+    }
+
+    pub fn get_16_bit_value(&self, address: usize) -> u16 {
+        let lsb = self.contents[address];
+        let msb = self.contents[address + 1];
 
         (msb as u16) << 8 | lsb as u16
     }
 
-    pub fn set_16_bit_value(&mut self, location: usize, value: u16) {
-        let lsb = (value as u16) & 0x00ff;
-        let msb = (value as u16) >> 8;
+    pub fn set_16_bit_value(&mut self, address: usize, value: u16) {
+        if !self.is_in_rom_region(address) {
+            let lsb = (value as u16) & 0x00ff;
+            let msb = (value as u16) >> 8;
 
-        self.contents[location] = lsb as u8;
-        self.contents[location + 1] = msb as u8;
+            self.contents[address] = lsb as u8;
+            self.contents[address + 1] = msb as u8;
+        }
     }
 
     pub fn create_page_hexdump(&self, page: u8) -> String {
@@ -147,5 +168,22 @@ mod tests {
 
         assert_eq!(memory.contents[0], 0xfd);
         assert_eq!(memory.contents[1], 0x2c);
+    }
+
+    #[test]
+    fn test_is_in_rom_region() {
+        let mut memory = Memory::new();
+
+        assert!(!memory.is_in_rom_region(0x3000));
+
+        memory.rom_regions.push(RomRegion {
+            start: 0x3000,
+            end: 0x3001,
+        });
+
+        assert!(!memory.is_in_rom_region(0x2FFF));
+        assert!(memory.is_in_rom_region(0x3000));
+        assert!(memory.is_in_rom_region(0x3001));
+        assert!(!memory.is_in_rom_region(0x3002));
     }
 }

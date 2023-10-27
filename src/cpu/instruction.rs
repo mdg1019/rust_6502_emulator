@@ -98,7 +98,7 @@ const SEI_INSTRUCTION: &str = "SEI";
 const STA_INSTRUCTION: &str = "STA";
 const STX_INSTRUCTION: &str = "STX";
 
-pub const INSTRUCTION_SET: [Instruction; 133] = [
+pub const INSTRUCTION_SET: [Instruction; 134] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -764,7 +764,8 @@ pub const INSTRUCTION_SET: [Instruction; 133] = [
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
         execute: Cpu::sta_instruction,
-    },Instruction {
+    },
+    Instruction {
         opcode: 0x86,
         mnemonic: STX_INSTRUCTION,
         bytes: 2,
@@ -817,6 +818,15 @@ pub const INSTRUCTION_SET: [Instruction; 133] = [
         addressing_mode: AddressingMode::ZeroPageX,
         sets_program_counter: false,
         execute: Cpu::sta_instruction,
+    },
+    Instruction {
+        opcode: 0x96,
+        mnemonic: STX_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::ZeroPageY,
+        sets_program_counter: false,
+        execute: Cpu::stx_instruction,
     },
     Instruction {
         opcode: 0x99,

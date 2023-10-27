@@ -97,8 +97,9 @@ const SED_INSTRUCTION: &str = "SED";
 const SEI_INSTRUCTION: &str = "SEI";
 const STA_INSTRUCTION: &str = "STA";
 const STX_INSTRUCTION: &str = "STX";
+const STY_INSTRUCTION: &str = "STY";
 
-pub const INSTRUCTION_SET: [Instruction; 135] = [
+pub const INSTRUCTION_SET: [Instruction; 136] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -755,6 +756,15 @@ pub const INSTRUCTION_SET: [Instruction; 135] = [
         addressing_mode: AddressingMode::IndirectX,
         sets_program_counter: false,
         execute: Cpu::sta_instruction,
+    },
+    Instruction {
+        opcode: 0x84,
+        mnemonic: STY_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 3,
+        addressing_mode: AddressingMode::ZeroPage,
+        sets_program_counter: false,
+        execute: Cpu::sty_instruction,
     },
     Instruction {
         opcode: 0x85,

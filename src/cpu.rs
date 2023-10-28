@@ -104,6 +104,26 @@ impl Cpu {
         Some((line, instruction.bytes))
     }
 
+    fn branch(&mut self, instruction: Instruction, pred: bool) -> ExecutionReturnValues {
+        if !pred {
+            self.registers.pc += instruction.bytes as u16;
+            return ExecutionReturnValues::new(instruction, false);
+        }
+
+        let old_pc = self.registers.pc;
+
+        let offset = self.memory.contents[(self.registers.pc + 1) as usize];
+
+        let relative_address = Cpu::calculate_address_from_relative_offset(self.registers.pc + 2, offset);
+
+        self.registers.pc = relative_address;
+
+        ExecutionReturnValues::new(
+            instruction,
+            Cpu::crosses_boundary_by_two_addresses(old_pc, relative_address)
+        )
+    }
+
     fn get_instruction_for_opcode(&self, location: usize) -> Option<Instruction> {
         let opcode = self.memory.get_8_bit_value(location);
 
@@ -291,6 +311,15 @@ impl Cpu {
         self.registers.sp -= 2;
     }
 
+    pub fn save_register(&mut self, instruction: Instruction, value: u8) -> ExecutionReturnValues {
+        let (address, _) = self.get_address(instruction);
+
+
+        self.memory.set_8_bit_value(address, value);
+
+        ExecutionReturnValues::new(instruction, false)  
+    }
+
     pub fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
@@ -362,26 +391,6 @@ impl Cpu {
         }
 
         ExecutionReturnValues::new(instruction, crossed_boundary)
-    }
-
-    fn branch(&mut self, instruction: Instruction, pred: bool) -> ExecutionReturnValues {
-        if !pred {
-            self.registers.pc += instruction.bytes as u16;
-            return ExecutionReturnValues::new(instruction, false);
-        }
-
-        let old_pc = self.registers.pc;
-
-        let offset = self.memory.contents[(self.registers.pc + 1) as usize];
-
-        let relative_address = Cpu::calculate_address_from_relative_offset(self.registers.pc + 2, offset);
-
-        self.registers.pc = relative_address;
-
-        ExecutionReturnValues::new(
-            instruction,
-            Cpu::crosses_boundary_by_two_addresses(old_pc, relative_address)
-        )
     }
 
     pub fn bcc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -848,30 +857,15 @@ impl Cpu {
     }
 
     pub fn sta_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        let (address, _) = self.get_address(instruction);
-
-
-        self.memory.set_8_bit_value(address, self.registers.a);
-
-        ExecutionReturnValues::new(instruction, false)
+        self.save_register(instruction, self.registers.a)
     }
 
     pub fn stx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        let (address, _) = self.get_address(instruction);
-
-
-        self.memory.set_8_bit_value(address, self.registers.x);
-
-        ExecutionReturnValues::new(instruction, false)
+        self.save_register(instruction, self.registers.x)
     }
 
     pub fn sty_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
-        let (address, _) = self.get_address(instruction);
-
-
-        self.memory.set_8_bit_value(address, self.registers.y);
-
-        ExecutionReturnValues::new(instruction, false)
+        self.save_register(instruction, self.registers.y)
     }
 }
 

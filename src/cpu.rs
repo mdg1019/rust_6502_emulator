@@ -867,6 +867,15 @@ impl Cpu {
     pub fn sty_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.save_register(instruction, self.registers.y)
     }
+
+    pub fn tax_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+        self.registers.x = self.registers.a;
+
+        self.set_negative_flag(self.registers.x);
+        self.set_zero_flag(self.registers.x);
+
+        ExecutionReturnValues::new(instruction, false)
+    }
 }
 
 #[cfg(test)]
@@ -3959,6 +3968,32 @@ mod tests {
         assert!(!cpu.registers.p.zero_flag);
         assert!(cpu.registers.p.negative_flag);
         assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_aa_tax_implied_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000);
+
+        cpu.registers.a = 0xFF;
+        cpu.registers.x = 0x00;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = false;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x8000] = 0xAA;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.x, 0xFF);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(cpu.registers.p.negative_flag);
+        assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
         assert!(!return_values.set_program_counter);
     }

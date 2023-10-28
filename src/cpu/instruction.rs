@@ -98,8 +98,9 @@ const SEI_INSTRUCTION: &str = "SEI";
 const STA_INSTRUCTION: &str = "STA";
 const STX_INSTRUCTION: &str = "STX";
 const STY_INSTRUCTION: &str = "STY";
+const TAX_INSTRUCTION: &str = "TAX";
 
-pub const INSTRUCTION_SET: [Instruction; 138] = [
+pub const INSTRUCTION_SET: [Instruction; 139] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -945,6 +946,15 @@ pub const INSTRUCTION_SET: [Instruction; 138] = [
         addressing_mode: AddressingMode::Immediate,
         sets_program_counter: false,
         execute: Cpu::lda_instruction,
+    },
+    Instruction {
+        opcode: 0xAA,
+        mnemonic: TAX_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::tax_instruction,
     },
     Instruction {
         opcode: 0xAC,

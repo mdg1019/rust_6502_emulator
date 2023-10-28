@@ -99,8 +99,9 @@ const STA_INSTRUCTION: &str = "STA";
 const STX_INSTRUCTION: &str = "STX";
 const STY_INSTRUCTION: &str = "STY";
 const TAX_INSTRUCTION: &str = "TAX";
+const TAY_INSTRUCTION: &str = "TAY";
 
-pub const INSTRUCTION_SET: [Instruction; 139] = [
+pub const INSTRUCTION_SET: [Instruction; 140] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -937,6 +938,15 @@ pub const INSTRUCTION_SET: [Instruction; 139] = [
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
         execute: Cpu::ldx_instruction,
+    },
+    Instruction {
+        opcode: 0xA8,
+        mnemonic: TAY_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::tay_instruction,
     },
     Instruction {
         opcode: 0xA9,

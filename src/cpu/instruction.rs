@@ -100,8 +100,12 @@ const STX_INSTRUCTION: &str = "STX";
 const STY_INSTRUCTION: &str = "STY";
 const TAX_INSTRUCTION: &str = "TAX";
 const TAY_INSTRUCTION: &str = "TAY";
+const TSX_INSTRUCTION: &str = "TSX";
+const TXA_INSTRUCTION: &str = "TXA";
+const TXS_INSTRUCTION: &str = "TXS";
+const TYA_INSTRUCTION: &str = "TYA";
 
-pub const INSTRUCTION_SET: [Instruction; 140] = [
+pub const INSTRUCTION_SET: [Instruction; 141] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -1055,6 +1059,15 @@ pub const INSTRUCTION_SET: [Instruction; 140] = [
         addressing_mode: AddressingMode::AbsoluteY,
         sets_program_counter: false,
         execute: Cpu::lda_instruction,
+    },
+    Instruction {
+        opcode: 0xBA,
+        mnemonic: TSX_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::tsx_instruction,
     },
     Instruction {
         opcode: 0xBC,

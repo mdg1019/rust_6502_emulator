@@ -105,7 +105,7 @@ const TXA_INSTRUCTION: &str = "TXA";
 const TXS_INSTRUCTION: &str = "TXS";
 const TYA_INSTRUCTION: &str = "TYA";
 
-pub const INSTRUCTION_SET: [Instruction; 141] = [
+pub const INSTRUCTION_SET: [Instruction; 142] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -798,6 +798,15 @@ pub const INSTRUCTION_SET: [Instruction; 141] = [
         addressing_mode: AddressingMode::Implied,
         sets_program_counter: false,
         execute: Cpu::dey_instruction,
+    },
+    Instruction {
+        opcode: 0x8A,
+        mnemonic: TXA_INSTRUCTION,
+        bytes: 1,
+        clock_periods: 2,
+        addressing_mode: AddressingMode::Implied,
+        sets_program_counter: false,
+        execute: Cpu::txa_instruction,
     },
     Instruction {
         opcode: 0x8C,

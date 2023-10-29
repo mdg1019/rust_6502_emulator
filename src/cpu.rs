@@ -1,6 +1,7 @@
 pub mod instruction;
 pub mod memory;
 pub mod registers;
+pub mod status_flags;
 
 use instruction::AddressingMode;
 use instruction::ExecutionReturnValues;
@@ -688,7 +689,7 @@ impl Cpu {
 
     pub fn php_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let mut flags = self.registers.p.to_byte();
-        flags |= registers::UNUSED_FLAG | registers::BREAK_FLAG;
+        flags |= status_flags::UNUSED_FLAG | status_flags::BREAK_FLAG;
 
         self.push_u8(flags);
 
@@ -707,7 +708,7 @@ impl Cpu {
     pub fn plp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let mut flags = self.pull_u8();
 
-        flags &= !registers::BREAK_FLAG;
+        flags &= !status_flags::BREAK_FLAG;
 
         self.registers.p.from_byte(flags);
 
@@ -789,7 +790,7 @@ impl Cpu {
     pub fn rti_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let mut flags = self.pull_u8();
 
-        flags &= !registers::BREAK_FLAG;
+        flags &= !status_flags::BREAK_FLAG;
 
         self.registers.p.from_byte(flags);
 
@@ -1245,7 +1246,7 @@ mod tests {
 
         let return_values = option_return_values.unwrap();
 
-        assert_eq!(cpu.memory.contents[0x01FF], cpu.registers.p.to_byte() | registers::UNUSED_FLAG | registers::BREAK_FLAG);
+        assert_eq!(cpu.memory.contents[0x01FF], cpu.registers.p.to_byte() | status_flags::UNUSED_FLAG | status_flags::BREAK_FLAG);
         assert_eq!(cpu.registers.sp, 0xFE);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 3);
@@ -1759,7 +1760,7 @@ mod tests {
         cpu.registers.sp = 0xFE;
         cpu.registers.pc = 0x8000;
 
-        cpu.memory.contents[0x01FF] = registers::UNUSED_FLAG | registers::BREAK_FLAG;
+        cpu.memory.contents[0x01FF] = status_flags::UNUSED_FLAG | status_flags::BREAK_FLAG;
         cpu.memory.contents[0x8000] = 0x28;
 
         let option_return_values = cpu.execute_opcode();
@@ -2227,7 +2228,7 @@ mod tests {
         cpu.registers.sp = 0xFC;
         cpu.registers.pc = 0x8000;
 
-        cpu.memory.contents[0x01FD] = registers::UNUSED_FLAG | registers::BREAK_FLAG;
+        cpu.memory.contents[0x01FD] = status_flags::UNUSED_FLAG | status_flags::BREAK_FLAG;
         cpu.memory.contents[0x01FE] = 0x03;
         cpu.memory.contents[0x01FF] = 0x30;
         cpu.memory.contents[0x8000] = 0x40;

@@ -157,14 +157,14 @@ impl Cpu {
                     .memory
                     .get_8_bit_value((self.registers.pc + 1) as usize);
 
-                (zero_page_offset as usize + self.registers.x as usize, false)
+                ((zero_page_offset as usize + self.registers.x as usize) & 0x00FF, false)
             }
             AddressingMode::ZeroPageY => {
                 let zero_page_offset = self
                     .memory
                     .get_8_bit_value((self.registers.pc + 1) as usize);
 
-                (zero_page_offset as usize + self.registers.y as usize, false)
+                ((zero_page_offset as usize + self.registers.y as usize) & 0x00FF, false)
             }
             AddressingMode::Absolute => {
                 let address = self

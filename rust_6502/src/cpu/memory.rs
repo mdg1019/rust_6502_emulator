@@ -98,24 +98,24 @@ impl Memory {
         result
     }
 
-    pub fn read_raw_file_into_memory(&mut self, file_path: &str, location: usize) -> usize {
+    pub fn read_raw_file_into_memory(&mut self, file_path: &str, starting_address: usize) -> usize {
         if let Ok(mut file) = File::open(file_path) {
             let mut buffer = Vec::new();
 
             if let Ok(length) = file.read_to_end(&mut buffer) {
-                let mut address = location;
-
-                for &byte in &buffer {
-                    self.contents[address] = byte;
-
-                    address += 1;
-                }
+                self.save_u8_vector_into_memory(starting_address, buffer);
 
                 return length;
             }
         }
 
         0
+    }
+
+    pub fn save_u8_vector_into_memory(&mut self, starting_address: usize, vector: Vec<u8>) {
+        for (i, byte)in vector.iter().enumerate() {
+            self.contents[starting_address + i] = *byte;
+        }
     }
 }
 
@@ -185,5 +185,22 @@ mod tests {
         assert!(memory.is_in_rom_region(0x3000));
         assert!(memory.is_in_rom_region(0x3001));
         assert!(!memory.is_in_rom_region(0x3002));
+    }
+
+    #[test]
+    fn test_save_u8_vector_into_memory() {
+        let mut memory = Memory::new();
+
+        let binary: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+        memory.save_u8_vector_into_memory(0x8000, binary);
+
+
+        let mut cnt: u8 = 0;
+
+        for address in 0x8000..0x8010 {
+            assert_eq!(memory.contents[address], cnt);
+
+            cnt += 1
+        }
     }
 }

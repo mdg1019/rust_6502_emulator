@@ -1,2 +1,3 @@
-/target
+/rust_6502/target
+/tester/target
 /sample_code/*.o65

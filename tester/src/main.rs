@@ -21,5 +21,8 @@ fn main() {
 
     print!("{}", cpu.disassemble_lines(address, 16));
 
-    cpu.run();
+    cpu.run(
+        Some(|| { "Debugger input".to_string() }),
+        Some(| s: String | { println!("{}", s); })
+    );
 }

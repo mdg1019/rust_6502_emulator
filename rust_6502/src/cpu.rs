@@ -48,8 +48,13 @@ impl Cpu {
         Some((instruction.execute)(self, instruction))
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, debug_input: Option<fn() -> String>, debug_output: Option<fn(String)>) {
         loop {
+            if let Some(d_i) = debug_input {
+                let result = d_i();
+                println!("{}", result);
+            }
+
             let instruction_start_time = Instant::now();
 
             if let Some(execution_return_values) = self.execute_opcode() {
@@ -70,6 +75,12 @@ impl Cpu {
 
             } else {
                 panic!("Unrecognized opcode!!!");
+            }
+
+            if let Some(d_o) = debug_output {
+                let result = "Debugger output";
+
+                d_o(result.to_string());
             }
 
             if self.registers.pc > 0x0440 {

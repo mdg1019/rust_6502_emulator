@@ -3,6 +3,8 @@ pub mod memory;
 pub mod registers;
 pub mod status_flags;
 
+use std::time::{Instant, Duration};
+
 use instruction::AddressingMode;
 use instruction::ExecutionReturnValues;
 use instruction::Instruction;
@@ -17,13 +19,15 @@ const STACK_BASE_ADDRESS: usize = 0x0100;
 pub struct Cpu {
     pub registers: Registers,
     pub memory: Memory,
+    cycle_duration: f64,
 }
 
 impl Cpu {
-    pub fn new(reset_address: u16) -> Cpu {
+    pub fn new(reset_address: u16, clock_speed: f64) -> Cpu {
         let mut cpu = Cpu {
             registers: Registers::new(),
             memory: Memory::new(),
+            cycle_duration: 1.0 / clock_speed,
         };
 
         cpu.memory.set_16_bit_value(RESET_VECTOR, reset_address);
@@ -42,6 +46,36 @@ impl Cpu {
         let instruction = self.get_instruction_for_opcode(self.registers.pc as usize)?;
 
         Some((instruction.execute)(self, instruction))
+    }
+
+    pub fn run(&mut self) {
+        loop {
+            let instruction_start_time = Instant::now();
+
+            if let Some(execution_return_values) = self.execute_opcode() {
+                if !execution_return_values.set_program_counter {
+                    self.registers.pc += execution_return_values.bytes as u16;
+                }
+
+                let instruction_end_time = Instant::now();
+
+                let elapsed_time = instruction_end_time.duration_since(instruction_start_time).as_secs_f64();
+
+                let target_time = self.cycle_duration * execution_return_values.clock_periods as f64;
+
+                if target_time > elapsed_time {
+                    std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
+                }
+
+
+            } else {
+                panic!("Unrecognized opcode!!!");
+            }
+
+            if self.registers.pc > 0x0440 {
+                break;
+            }
+        }
     }
 
     pub fn disassemble_opcode(&self, address: usize) -> Option<(String, u8)> {
@@ -957,7 +991,7 @@ mod tests {
 
     #[test]
     fn test_set_zero_flag_when_not_zero() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = true;
 
         cpu.set_zero_flag(0xff);
@@ -967,7 +1001,7 @@ mod tests {
 
     #[test]
     fn test_set_zero_flag_when_zero() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = false;
 
         cpu.set_zero_flag(0x00);
@@ -977,7 +1011,7 @@ mod tests {
 
     #[test]
     fn test_set_overflow_flag_when_two_positives_results_in_a_negative() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = false;
 
         cpu.set_overflow_flag(0x7f, 0x01, (0x7f + 0x01) as u16 as u8);
@@ -987,7 +1021,7 @@ mod tests {
 
     #[test]
     fn test_set_overflow_flag_when_two_positives_results_in_a_positive() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = false;
 
         cpu.set_overflow_flag(0x7e, 0x01, (0x7e + 0x01) as u16 as u8);
@@ -997,7 +1031,7 @@ mod tests {
 
     #[test]
     fn test_set_overflow_flag_when_two_negatives_results_in_a_positive() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = false;
 
         cpu.set_overflow_flag(0x80, 0xff, (0x80 + 0xff) as u16 as u8);
@@ -1007,7 +1041,7 @@ mod tests {
 
     #[test]
     fn test_set_overflow_flag_when_two_negatives_results_in_a_negative() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = false;
 
         cpu.set_overflow_flag(0x81, 0xff, (0x81 + 0xff) as u16 as u8);
@@ -1017,7 +1051,7 @@ mod tests {
 
     #[test]
     fn test_set_carry_flag_when_no_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
 
         cpu.set_carry_flag(0x00ff);
@@ -1027,7 +1061,7 @@ mod tests {
 
     #[test]
     fn test_set_carry_flag_when_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = false;
 
         cpu.set_carry_flag(0x0100);
@@ -1047,7 +1081,7 @@ mod tests {
 
     #[test]
     fn test_pull_u8() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xFE;
         cpu.registers.pc = 0x8000;
 
@@ -1061,7 +1095,7 @@ mod tests {
     
     #[test]
     fn test_pull_u16() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xFD;
         cpu.registers.pc = 0x8000;
 
@@ -1076,7 +1110,7 @@ mod tests {
 
     #[test]
     fn test_push_u8() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xff;
         cpu.registers.pc = 0x8000;
 
@@ -1090,7 +1124,7 @@ mod tests {
     
     #[test]
     fn test_push_u16() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xff;
         cpu.registers.pc = 0x8000;
 
@@ -1105,7 +1139,7 @@ mod tests {
 
     #[test]
     fn test_compare_when_register_is_less_than_value() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -1121,7 +1155,7 @@ mod tests {
 
     #[test]
     fn test_compare_when_register_is_equal_to_value() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.p.negative_flag = true;
         cpu.registers.p.zero_flag = false;
@@ -1137,7 +1171,7 @@ mod tests {
 
     #[test]
     fn test_compare_when_register_is_greater_than_value() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.p.negative_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -1153,7 +1187,7 @@ mod tests {
 
     #[test]
     fn test_00_brk_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xff;
         cpu.registers.pc = 0x8000;
 
@@ -1180,7 +1214,7 @@ mod tests {
 
     #[test]
     fn test_01_ora_indirect_x_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -1209,7 +1243,7 @@ mod tests {
 
     #[test]
     fn test_05_ora_zero_page_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -1235,7 +1269,7 @@ mod tests {
 
     #[test]
     fn test_06_asl_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
         cpu.registers.p.carry_flag = false;
@@ -1263,7 +1297,7 @@ mod tests {
 
     #[test]
     fn test_08_php_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -1285,7 +1319,7 @@ mod tests {
 
     #[test]
     fn test_09_ora_immediate_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -1310,7 +1344,7 @@ mod tests {
 
     #[test]
     fn test_0a_asl_accumulator_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xcc;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -1336,7 +1370,7 @@ mod tests {
 
     #[test]
     fn test_0a_asl_accumulator_instruction_no_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x4c;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -1362,7 +1396,7 @@ mod tests {
 
     #[test]
     fn test_0d_ora_absolute_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -1390,7 +1424,7 @@ mod tests {
 
     #[test]
     fn test_0e_asl_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
         cpu.registers.p.carry_flag = false;
@@ -1418,7 +1452,7 @@ mod tests {
 
     #[test]
     fn test_10_bpl_relative_instruction_with_negative_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -1439,7 +1473,7 @@ mod tests {
 
     #[test]
     fn test_10_bpl_relative_instruction_with_negative_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -1460,7 +1494,7 @@ mod tests {
 
     #[test]
     fn test_11_ora_indirect_y_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -1489,7 +1523,7 @@ mod tests {
 
     #[test]
     fn test_15_ora_zero_page_x_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -1516,7 +1550,7 @@ mod tests {
 
     #[test]
     fn test_16_asl_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -1544,7 +1578,7 @@ mod tests {
 
     #[test]
     fn test_18_clc_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -1564,7 +1598,7 @@ mod tests {
 
     #[test]
     fn test_19_ora_absolute_y_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -1592,7 +1626,7 @@ mod tests {
 
     #[test]
     fn test_1d_ora_absolute_x_instruction_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x22;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -1620,7 +1654,7 @@ mod tests {
 
     #[test]
     fn test_1e_asl_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 2;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -1649,7 +1683,7 @@ mod tests {
 
     #[test]
     fn test_20_jsr_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -1674,7 +1708,7 @@ mod tests {
 
     #[test]
     fn test_21_and_indirect_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -1704,7 +1738,7 @@ mod tests {
 
     #[test]
     fn test_24_bit_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xff;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -1732,7 +1766,7 @@ mod tests {
 
     #[test]
     fn test_25_and_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -1758,7 +1792,7 @@ mod tests {
 
     #[test]
     fn test_26_rol_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -1785,7 +1819,7 @@ mod tests {
 
     #[test]
     fn test_28_plp_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.break_flag = true;
         cpu.registers.sp = 0xFE;
         cpu.registers.pc = 0x8000;
@@ -1808,7 +1842,7 @@ mod tests {
 
     #[test]
     fn test_29_and_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -1833,7 +1867,7 @@ mod tests {
 
     #[test]
     fn test_2a_rol_accumulator_instruction_without_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x4F;
         cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -1859,7 +1893,7 @@ mod tests {
 
     #[test]
     fn test_2a_rol_accumulator_instruction_with_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCF;
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -1885,7 +1919,7 @@ mod tests {
 
     #[test]
     fn test_2c_bit_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xff;
         cpu.registers.p.zero_flag = false;
         cpu.registers.p.negative_flag = true;
@@ -1914,7 +1948,7 @@ mod tests {
 
     #[test]
     fn test_2d_and_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -1941,7 +1975,7 @@ mod tests {
 
     #[test]
     fn test_2e_rol_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -1969,7 +2003,7 @@ mod tests {
 
     #[test]
     fn test_30_bmi_relative_instruction_with_negative_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -1990,7 +2024,7 @@ mod tests {
 
     #[test]
     fn test_30_bmi_relative_instruction_with_negative_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -2011,7 +2045,7 @@ mod tests {
 
     #[test]
     fn test_31_and_indirect_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2041,7 +2075,7 @@ mod tests {
 
     #[test]
     fn test_35_and_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2055,7 +2089,7 @@ mod tests {
 
         #[test]
         fn test_2a_rol_accumulator_instruction_without_carry() {
-            let mut cpu: Cpu = Cpu::new(0x8000);
+            let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
             cpu.registers.a = 0x4F;
             cpu.registers.p.carry_flag = false;
             cpu.registers.p.zero_flag = true;
@@ -2081,7 +2115,7 @@ mod tests {
     
         #[test]
         fn test_2a_rol_accumulator_instruction_with_carry() {
-            let mut cpu: Cpu = Cpu::new(0x8000);
+            let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
             cpu.registers.a = 0xCF;
             cpu.registers.p.carry_flag = true;
             cpu.registers.p.zero_flag = true;
@@ -2120,7 +2154,7 @@ mod tests {
 
     #[test]
     fn test_36_rol_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -2148,7 +2182,7 @@ mod tests {
 
     #[test]
     fn test_38_sec_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -2168,7 +2202,7 @@ mod tests {
 
     #[test]
     fn test_39_and_absolute_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2196,7 +2230,7 @@ mod tests {
 
     #[test]
     fn test_3d_and_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xef;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2224,7 +2258,7 @@ mod tests {
 
     #[test]
     fn test_3e_rol_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -2253,7 +2287,7 @@ mod tests {
 
     #[test]
     fn test_40_rti_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.break_flag = true;
         cpu.registers.sp = 0xFC;
         cpu.registers.pc = 0x8000;
@@ -2279,7 +2313,7 @@ mod tests {
 
     #[test]
     fn test_41_eor_indirect_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2308,7 +2342,7 @@ mod tests {
 
     #[test]
     fn test_45_eor_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2334,7 +2368,7 @@ mod tests {
 
     #[test]
     fn test_46_lsr_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2361,7 +2395,7 @@ mod tests {
 
     #[test]
     fn test_48_pha_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.sp = 0xFF;
         cpu.registers.pc = 0x8000;
@@ -2384,7 +2418,7 @@ mod tests {
 
     #[test]
     fn test_49_eor_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2409,7 +2443,7 @@ mod tests {
 
     #[test]
     fn test_4a_lsr_accumulator_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCF;
         cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -2435,7 +2469,7 @@ mod tests {
 
     #[test]
     fn test_4c_jmp_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.pc = 0x8000;
 
         cpu.memory.contents[0x8000] = 0x4C;
@@ -2456,7 +2490,7 @@ mod tests {
 
     #[test]
     fn test_4d_eor_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2483,7 +2517,7 @@ mod tests {
 
     #[test]
     fn test_4e_lsr_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2511,7 +2545,7 @@ mod tests {
 
     #[test]
     fn test_50_bvc_relative_instruction_with_overflow_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -2532,7 +2566,7 @@ mod tests {
 
     #[test]
     fn test_50_bvc_relative_instruction_with_overflow_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -2553,7 +2587,7 @@ mod tests {
 
     #[test]
     fn test_51_eor_indirect_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2582,7 +2616,7 @@ mod tests {
 
     #[test]
     fn test_55_eor_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2609,7 +2643,7 @@ mod tests {
 
     #[test]
     fn test_56_lsr_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -2637,7 +2671,7 @@ mod tests {
 
     #[test]
     fn test_58_cli_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.interrupt_disable_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -2657,7 +2691,7 @@ mod tests {
 
     #[test]
     fn test_59_eor_absolute_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2685,7 +2719,7 @@ mod tests {
 
     #[test]
     fn test_5d_eor_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCC;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -2713,7 +2747,7 @@ mod tests {
 
     #[test]
     fn test_5e_lsr_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -2742,7 +2776,7 @@ mod tests {
 
     #[test]
     fn test_60_rts_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xFD;
         cpu.registers.pc = 0x8000;
 
@@ -2765,7 +2799,7 @@ mod tests {
 
     #[test]
     fn test_61_adc_indirect_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x40;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = false;
@@ -2798,7 +2832,7 @@ mod tests {
 
     #[test]
     fn test_65_adc_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x40;
         cpu.registers.p.zero_flag = false;
         cpu.registers.p.negative_flag = false;
@@ -2828,7 +2862,7 @@ mod tests {
 
     #[test]
     fn test_66_ror_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -2855,7 +2889,7 @@ mod tests {
 
     #[test]
     fn test_68_pla_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x00;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -2882,7 +2916,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x99;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2911,7 +2945,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction_with_carry_set_adds_correctly() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xff;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2940,7 +2974,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction_should_set_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xff;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2969,7 +3003,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction_should_not_set_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xfe;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -2998,7 +3032,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction_should_overflow_1() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x7f; // 127d
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -3027,7 +3061,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction_should_not_overflow_1() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x7e; // 126 decimal
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -3056,7 +3090,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction_should_overflow_2() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x81; // -127
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -3085,7 +3119,7 @@ mod tests {
 
     #[test]
     fn test_69_adc_immediate_instruction_should_not_overflow_2() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x81; // -127 decimal
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -3114,7 +3148,7 @@ mod tests {
 
     #[test]
     fn test_6a_ror_accumulator_instruction_without_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCE;
         cpu.registers.p.carry_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -3140,7 +3174,7 @@ mod tests {
 
     #[test]
     fn test_6a_ror_accumulator_instruction_with_carry() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xCF;
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -3166,7 +3200,7 @@ mod tests {
 
     #[test]
     fn test_6c_jmp_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.pc = 0x8000;
 
         cpu.memory.contents[0x3000] = 0x00;
@@ -3189,7 +3223,7 @@ mod tests {
 
     #[test]
     fn test_6d_adc_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x40;
         cpu.registers.p.zero_flag = false;
         cpu.registers.p.negative_flag = false;
@@ -3220,7 +3254,7 @@ mod tests {
 
     #[test]
     fn test_6e_ror_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -3248,7 +3282,7 @@ mod tests {
 
     #[test]
     fn test_70_bvs_relative_instruction_with_overflow_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -3269,7 +3303,7 @@ mod tests {
 
     #[test]
     fn test_70_bvs_relative_instruction_with_overflow_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -3290,7 +3324,7 @@ mod tests {
 
     #[test]
     fn test_71_adc_indirect_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x40;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = false;
@@ -3323,7 +3357,7 @@ mod tests {
 
     #[test]
     fn test_75_adc_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x40;
         cpu.registers.x = 0x03;
         cpu.registers.p.zero_flag = false;
@@ -3354,7 +3388,7 @@ mod tests {
 
     #[test]
     fn test_76_ror_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -3382,7 +3416,7 @@ mod tests {
 
     #[test]
     fn test_78_sei_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.interrupt_disable_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -3402,7 +3436,7 @@ mod tests {
 
     #[test]
     fn test_79_adc_absolute_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x40;
         cpu.registers.y = 0x03;
         cpu.registers.p.zero_flag = false;
@@ -3434,7 +3468,7 @@ mod tests {
 
     #[test]
     fn test_7d_adc_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x40;
         cpu.registers.x = 0x03;
         cpu.registers.p.zero_flag = false;
@@ -3466,7 +3500,7 @@ mod tests {
 
     #[test]
     fn test_7e_ror_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.carry_flag = true;
         cpu.registers.p.zero_flag = true;
@@ -3495,7 +3529,7 @@ mod tests {
 
     #[test]
     fn test_81_sta_indirect_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.x = 0x02;
         cpu.registers.pc = 0x8000;
@@ -3520,7 +3554,7 @@ mod tests {
 
     #[test]
     fn test_84_sty_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -3542,7 +3576,7 @@ mod tests {
 
     #[test]
     fn test_85_sta_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -3564,7 +3598,7 @@ mod tests {
 
     #[test]
     fn test_86_stx_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -3586,7 +3620,7 @@ mod tests {
 
     #[test]
     fn test_88_dey_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x00;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -3610,7 +3644,7 @@ mod tests {
 
     #[test]
     fn test_8a_txa_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.x = 0xFF;
         cpu.registers.a = 0x00;
@@ -3636,7 +3670,7 @@ mod tests {
 
     #[test]
     fn test_8c_sty_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -3659,7 +3693,7 @@ mod tests {
 
     #[test]
     fn test_8d_sta_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -3682,7 +3716,7 @@ mod tests {
 
     #[test]
     fn test_8e_stx_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0xFF;
         cpu.registers.pc = 0x8000;
 
@@ -3705,7 +3739,7 @@ mod tests {
 
     #[test]
     fn test_90_bcc_relative_instruction_with_carry_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -3726,7 +3760,7 @@ mod tests {
 
     #[test]
     fn test_90_bcc_relative_instruction_with_carry_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -3747,7 +3781,7 @@ mod tests {
 
     #[test]
     fn test_91_sta_indirect_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.y = 0x02;
         cpu.registers.pc = 0x8000;
@@ -3772,7 +3806,7 @@ mod tests {
 
     #[test]
     fn test_94_sty_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0xFF;
         cpu.registers.x = 0x02;
         cpu.registers.pc = 0x8000;
@@ -3795,7 +3829,7 @@ mod tests {
 
     #[test]
     fn test_95_sta_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.x = 0x02;
         cpu.registers.pc = 0x8000;
@@ -3818,7 +3852,7 @@ mod tests {
 
     #[test]
     fn test_96_stx_zero_page_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0xFF;
         cpu.registers.y = 0x02;
         cpu.registers.pc = 0x8000;
@@ -3841,7 +3875,7 @@ mod tests {
 
     #[test]
     fn test_98_tya_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.y = 0xFF;
         cpu.registers.a = 0x00;
@@ -3867,7 +3901,7 @@ mod tests {
 
     #[test]
     fn test_99_sta_absolute_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.y = 0x02;
         cpu.registers.pc = 0x8000;
@@ -3891,7 +3925,7 @@ mod tests {
 
     #[test]
     fn test_9a_txs_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0xFF;
         cpu.registers.sp = 0x00;
         cpu.registers.pc = 0x8000;
@@ -3913,7 +3947,7 @@ mod tests {
 
     #[test]
     fn test_9d_sta_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0xFF;
         cpu.registers.x = 0x02;
         cpu.registers.pc = 0x8000;
@@ -3937,7 +3971,7 @@ mod tests {
 
     #[test]
     fn test_a0_ldy_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x00;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -3962,7 +3996,7 @@ mod tests {
 
     #[test]
     fn test_a1_lda_indirect_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x00;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -3991,7 +4025,7 @@ mod tests {
 
     #[test]
     fn test_a2_ldx_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x00;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -4016,7 +4050,7 @@ mod tests {
 
     #[test]
     fn test_a4_ldy_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x00;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -4042,7 +4076,7 @@ mod tests {
 
     #[test]
     fn test_a5_lda_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0x00;
         cpu.registers.p.zero_flag = true;
@@ -4069,7 +4103,7 @@ mod tests {
 
     #[test]
     fn test_a6_ldx_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x00;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -4095,7 +4129,7 @@ mod tests {
 
     #[test]
     fn test_a8_tay_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0xFF;
         cpu.registers.y = 0x00;
@@ -4121,7 +4155,7 @@ mod tests {
 
     #[test]
     fn test_a9_lda_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0x00;
         cpu.registers.p.zero_flag = true;
@@ -4147,7 +4181,7 @@ mod tests {
 
     #[test]
     fn test_aa_tax_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0xFF;
         cpu.registers.x = 0x00;
@@ -4173,7 +4207,7 @@ mod tests {
 
     #[test]
     fn test_ac_ldy_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x00;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -4200,7 +4234,7 @@ mod tests {
 
     #[test]
     fn test_ad_lda_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0x00;
         cpu.registers.p.zero_flag = true;
@@ -4228,7 +4262,7 @@ mod tests {
 
     #[test]
     fn test_ae_ldx_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x00;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = false;
@@ -4255,7 +4289,7 @@ mod tests {
 
     #[test]
     fn test_b0_bcs_relative_instruction_with_carry_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -4276,7 +4310,7 @@ mod tests {
 
     #[test]
     fn test_b0_bcs_relative_instruction_with_carry_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.carry_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -4297,7 +4331,7 @@ mod tests {
 
     #[test]
     fn test_b1_lda_indirect_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x00;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -4326,7 +4360,7 @@ mod tests {
 
     #[test]
     fn test_b4_ldy_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x00;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -4353,7 +4387,7 @@ mod tests {
 
     #[test]
     fn test_b5_lda_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0xff;
         cpu.registers.x = 0x02;
@@ -4381,7 +4415,7 @@ mod tests {
 
     #[test]
     fn test_b6_ldx_zero_page_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x00;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -4408,7 +4442,7 @@ mod tests {
 
     #[test]
     fn test_b8_clv_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.overflow_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -4428,7 +4462,7 @@ mod tests {
 
     #[test]
     fn test_b9_lda_absolute_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0x00;
         cpu.registers.y = 0x02;
@@ -4457,7 +4491,7 @@ mod tests {
 
     #[test]
     fn test_ba_tsx_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.sp = 0xFF;
         cpu.registers.x = 0x00;
         cpu.registers.p.zero_flag = true;
@@ -4482,7 +4516,7 @@ mod tests {
 
     #[test]
     fn test_bc_ldy_absolut_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x00;
         cpu.registers.x = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -4510,7 +4544,7 @@ mod tests {
 
     #[test]
     fn test_bd_lda_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
 
         cpu.registers.a = 0x00;
         cpu.registers.x = 0x02;
@@ -4539,7 +4573,7 @@ mod tests {
 
     #[test]
     fn test_be_ldx_absolut_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x00;
         cpu.registers.y = 0x02;
         cpu.registers.p.zero_flag = true;
@@ -4567,7 +4601,7 @@ mod tests {
 
     #[test]
     fn test_c0_cpy_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4594,7 +4628,7 @@ mod tests {
 
     #[test]
     fn test_c1_cmp_indirect_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.x = 0x02;
         cpu.registers.p.negative_flag = false;
@@ -4624,7 +4658,7 @@ mod tests {
 
     #[test]
     fn test_c4_cpy_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4651,7 +4685,7 @@ mod tests {
 
     #[test]
     fn test_c5_cmp_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4678,7 +4712,7 @@ mod tests {
 
     #[test]
     fn test_c6_dec_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.pc = 0x8000;
@@ -4703,7 +4737,7 @@ mod tests {
 
     #[test]
     fn test_c8_iny_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0xFF;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4727,7 +4761,7 @@ mod tests {
 
     #[test]
     fn test_c9_cmp_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4753,7 +4787,7 @@ mod tests {
 
     #[test]
     fn test_ca_dex_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x00;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4777,7 +4811,7 @@ mod tests {
 
     #[test]
     fn test_cc_cpy_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.y = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4805,7 +4839,7 @@ mod tests {
 
     #[test]
     fn test_cd_cmp_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4833,7 +4867,7 @@ mod tests {
 
     #[test]
     fn test_ce_dec_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.pc = 0x8000;
@@ -4859,7 +4893,7 @@ mod tests {
 
     #[test]
     fn test_d0_bne_relative_instruction_with_zero_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -4880,7 +4914,7 @@ mod tests {
 
     #[test]
     fn test_d0_bne_relative_instruction_with_zero_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -4901,7 +4935,7 @@ mod tests {
 
     #[test]
     fn test_d1_cmp_indirect_y_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.y = 0x02;
         cpu.registers.p.negative_flag = false;
@@ -4931,7 +4965,7 @@ mod tests {
 
     #[test]
     fn test_d5_cmp_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.x = 0x02;
         cpu.registers.p.negative_flag = false;
@@ -4959,7 +4993,7 @@ mod tests {
 
     #[test]
     fn test_d6_dec_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -4985,7 +5019,7 @@ mod tests {
 
     #[test]
     fn test_d8_cld_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.decimal_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -5005,7 +5039,7 @@ mod tests {
 
     #[test]
     fn test_d9_cmp_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.y = 0x02;
         cpu.registers.p.negative_flag = false;
@@ -5034,7 +5068,7 @@ mod tests {
 
     #[test]
     fn test_dd_cmp_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x10;
         cpu.registers.x = 0x02;
         cpu.registers.p.negative_flag = false;
@@ -5063,7 +5097,7 @@ mod tests {
 
     #[test]
     fn test_de_dec_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -5090,7 +5124,7 @@ mod tests {
 
     #[test]
     fn test_e0_cpx_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -5116,7 +5150,7 @@ mod tests {
 
     #[test]
     fn test_e4_cpx_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -5143,7 +5177,7 @@ mod tests {
 
     #[test]
     fn test_e6_inc_zero_page_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.pc = 0x8000;
@@ -5168,7 +5202,7 @@ mod tests {
 
     #[test]
     fn test_e8_inx_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0xFF;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -5192,7 +5226,7 @@ mod tests {
 
     #[test]
     fn test_e9_sbc_immediate_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x80;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -5221,7 +5255,7 @@ mod tests {
 
     #[test]
     fn test_e9_sbc_immediate_instruction_with_borrow() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x80;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -5250,7 +5284,7 @@ mod tests {
 
     #[test]
     fn test_e9_sbc_immediate_instruction_sets_borrow() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x04;
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -5279,7 +5313,7 @@ mod tests {
 
     #[test]
     fn test_e9_sbc_immediate_instruction_should_overflow_1() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x80; // -128d
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -5308,7 +5342,7 @@ mod tests {
 
     #[test]
     fn test_e9_sbc_immediate_instruction_should_not_overflow_1() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x80; // -128d
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -5337,7 +5371,7 @@ mod tests {
 
     #[test]
     fn test_e9_sbc_immediate_instruction_should_overflow_2() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x7f; // 128d
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -5366,7 +5400,7 @@ mod tests {
 
     #[test]
     fn test_e9_sbc_immediate_instruction_should_not_overflow_2() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.a = 0x7f; // 127d
         cpu.registers.p.zero_flag = true;
         cpu.registers.p.negative_flag = true;
@@ -5395,7 +5429,7 @@ mod tests {
 
     #[test]
     fn test_ea_nop_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x10;
         cpu.registers.pc = 0x8000;
 
@@ -5414,7 +5448,7 @@ mod tests {
 
     #[test]
     fn test_ec_cpx_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x10;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -5442,7 +5476,7 @@ mod tests {
 
     #[test]
     fn test_ee_inc_absolute_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
         cpu.registers.pc = 0x8000;
@@ -5468,7 +5502,7 @@ mod tests {
 
     #[test]
     fn test_f0_beq_relative_instruction_with_zero_not_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -5489,7 +5523,7 @@ mod tests {
 
     #[test]
     fn test_f0_beq_relative_instruction_with_zero_set() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.zero_flag = true;
         cpu.registers.pc = 0x8000;
 
@@ -5510,7 +5544,7 @@ mod tests {
 
     #[test]
     fn test_f6_inc_zero_page_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;
@@ -5536,7 +5570,7 @@ mod tests {
 
     #[test]
     fn test_f8_sed_implied_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.decimal_flag = false;
         cpu.registers.pc = 0x8000;
 
@@ -5556,7 +5590,7 @@ mod tests {
 
     #[test]
     fn test_fe_inc_absolute_x_instruction() {
-        let mut cpu: Cpu = Cpu::new(0x8000);
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
         cpu.registers.p.negative_flag = false;
         cpu.registers.p.zero_flag = true;

@@ -2,7 +2,7 @@ extern crate rust_6502;
 use rust_6502::cpu::Cpu;
 
 fn main() {
-    let mut cpu = Cpu::new(0x8000);
+    let mut cpu = Cpu::new(0x0400, 1_789_773.0);
     cpu.power_up();
 
     println!("{}", cpu.registers.to_string());
@@ -20,4 +20,6 @@ fn main() {
     let address: usize = 0x0400;
 
     print!("{}", cpu.disassemble_lines(address, 16));
+
+    cpu.run();
 }

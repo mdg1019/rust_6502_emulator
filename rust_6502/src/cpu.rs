@@ -44,8 +44,8 @@ impl Cpu {
         Some((instruction.execute)(self, instruction))
     }
 
-    pub fn disassemble_opcode(&self, location: usize) -> Option<(String, u8)> {
-        let instruction = self.get_instruction_for_opcode(location)?;
+    pub fn disassemble_opcode(&self, address: usize) -> Option<(String, u8)> {
+        let instruction = self.get_instruction_for_opcode(address)?;
 
         let mut bytes = String::new();
 
@@ -53,7 +53,7 @@ impl Cpu {
             bytes = format!(
                 "{} {:02X}",
                 bytes,
-                self.memory.get_8_bit_value(location + i as usize)
+                self.memory.get_8_bit_value(address + i as usize)
             );
         }
 
@@ -61,48 +61,78 @@ impl Cpu {
             AddressingMode::Accumulator => "A".to_string(),
             AddressingMode::Implied => String::new(),
             AddressingMode::Relative => {
-                let offset = self.memory.get_8_bit_value(location + 1);
-                let relative_address = Cpu::calculate_address_from_relative_offset((location + 2) as u16, offset);
+                let offset = self.memory.get_8_bit_value(address + 1);
+                let relative_address = Cpu::calculate_address_from_relative_offset((address + 2) as u16, offset);
                 format!("${:04X}", relative_address)
             }
             AddressingMode::ZeroPage => {
-                format!("${:02X}", self.memory.get_8_bit_value(location + 1))
+                format!("${:02X}", self.memory.get_8_bit_value(address + 1))
             }
             AddressingMode::Immediate => {
-                format!("#${:02X}", self.memory.get_8_bit_value(location + 1))
+                format!("#${:02X}", self.memory.get_8_bit_value(address + 1))
             }
             AddressingMode::ZeroPageX => {
-                format!("${:02X},X", self.memory.get_8_bit_value(location + 1))
+                format!("${:02X},X", self.memory.get_8_bit_value(address + 1))
             }
             AddressingMode::ZeroPageY => {
-                format!("${:02X},Y", self.memory.get_8_bit_value(location + 1))
+                format!("${:02X},Y", self.memory.get_8_bit_value(address + 1))
             }
             AddressingMode::Absolute => {
-                format!("${:04X}", self.memory.get_16_bit_value(location + 1))
+                format!("${:04X}", self.memory.get_16_bit_value(address + 1))
             }
             AddressingMode::AbsoluteX => {
-                format!("${:04X},X", self.memory.get_16_bit_value(location + 1))
+                format!("${:04X},X", self.memory.get_16_bit_value(address + 1))
             }
             AddressingMode::AbsoluteY => {
-                format!("${:04X},Y", self.memory.get_16_bit_value(location + 1))
+                format!("${:04X},Y", self.memory.get_16_bit_value(address + 1))
             }
             AddressingMode::Indirect => {
-                format!("(${:04X})", self.memory.get_16_bit_value(location + 1) as usize)
+                format!("(${:04X})", self.memory.get_16_bit_value(address + 1) as usize)
             }
             AddressingMode::IndirectX => {
-                format!("(${:02X},X)", self.memory.get_8_bit_value(location + 1))
+                format!("(${:02X},X)", self.memory.get_8_bit_value(address + 1))
             }
             AddressingMode::IndirectY => {
-                format!("(${:02X}),Y", self.memory.get_8_bit_value(location + 1))
+                format!("(${:02X}),Y", self.memory.get_8_bit_value(address + 1))
             }
         };
 
         let line = format!(
-            "{:04X} {:<8} {:<4} {}",
-            location, bytes, instruction.mnemonic, operand
+            "{:04X} {:<9} {:<4} {}",
+            address, bytes, instruction.mnemonic, operand
         );
 
         Some((line, instruction.bytes))
+    }
+
+    pub fn disassemble_lines(&mut self, starting_address: usize, number_of_lines: u8) -> String {
+        let mut address = starting_address;
+        let mut result = String::new();
+
+        for _ in 0..number_of_lines {
+            if let Some((line, length)) = self.disassemble_opcode(address) {
+                result.push_str(&line);
+                result.push_str("\r\n");
+
+                address += length as usize;
+            }
+            else {
+
+                let bytes = format!("{:02X}", self.memory.contents[address]);
+
+                let line = format!(
+                    "{:04X} {:<9} UNRECONIZED OPCODE",
+                    address, bytes
+                );
+                
+                result.push_str(&line);
+                result.push_str("\r\n");
+
+                address += 1;
+            }
+        }
+
+        result
     }
 
     fn branch(&mut self, instruction: Instruction, pred: bool) -> ExecutionReturnValues {

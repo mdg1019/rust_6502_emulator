@@ -10,26 +10,14 @@ fn main() {
 
     println!("{}", cpu.registers.to_string());
 
-    let length = cpu.memory.read_raw_file_into_memory(
-        "/home/mark/rust/rust_6502_emulator/sample_code/snippet.o65",
-        0x8000,
+    let mut length = cpu.memory.read_raw_file_into_memory(
+        "/home/mark/6502TestFiles/6502_functional_test.bin",
+        0x0000,
     );
 
-    println!("{}", cpu.memory.create_page_hexdump(0x80));
+    println!("{}", cpu.memory.create_page_hexdump(0x04));
 
-    let address: usize = 0x8000;
-    let mut offset: usize = 0x0000;
+    let address: usize = 0x0400;
 
-    while offset < length {
-        if let Some((line, bytes)) = cpu.disassemble_opcode(address + offset) {
-            println!("{}", line);
-            offset += bytes as usize;
-        } else {
-            break;
-        }
-    }
-
-    let _result = cpu.execute_opcode();
-
-    println!("{}", cpu.registers.to_string());
+    print!("{}", cpu.disassemble_lines(address, 16));
 }

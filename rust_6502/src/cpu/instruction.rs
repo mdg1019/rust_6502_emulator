@@ -112,7 +112,7 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         bytes: 1,
         clock_periods: 7,
         addressing_mode: AddressingMode::Implied,
-        sets_program_counter: false,
+        sets_program_counter: true,
         execute: Cpu::brk_instruction,
     },
     Instruction {

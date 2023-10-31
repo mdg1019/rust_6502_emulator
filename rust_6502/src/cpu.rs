@@ -1235,6 +1235,9 @@ mod tests {
         assert_eq!(cpu.memory.contents[0x01fd], old_flags);
         assert_eq!(cpu.memory.contents[0x01fe], 0x02);
         assert_eq!(cpu.memory.contents[0x01ff], 0x80);
+        assert_eq!(return_values.bytes,1);
+        assert_eq!(return_values.clock_periods, 7);
+        assert!(return_values.set_program_counter);
     }
 
     #[test]

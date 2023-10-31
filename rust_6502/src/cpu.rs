@@ -50,7 +50,7 @@ impl Cpu {
 
     pub fn run(
         &mut self,
-        debugger: Option<fn(String) -> String>,
+        debugger: Option<fn(&str) -> String>,
     ) {
         let debug = debugger.is_some();
         let mut stepping = true;
@@ -61,15 +61,33 @@ impl Cpu {
                 if stepping {
                     stepping = false;
 
-                    let output = self.registers.to_string() +
+                    let mut output = "\r\n".to_string() +
+                        &self.registers.to_string() +
                         "\r\n" + 
                         &self.disassemble_lines(self.registers.pc as usize, 8);
-    
-                    let input = debugger.unwrap()(output).trim().to_uppercase();
+                    
+                    loop {
+                        let input = debugger.unwrap()(&output).trim().to_uppercase();
 
-                    match input.as_str() {
-                        "X" => return,
-                        _ => (),
+                        let split_input: Vec<&str> = input.split(" ").collect();
+
+                        match split_input.len() {
+                            1 => match input.as_str() {
+                                "X" => return,
+                                "?" | "" => {
+                                    output = "\r\nX - Exit Debugger\r\n\
+                                        ? - Help\r\n".to_string();
+                                }
+                                _ => {
+                                    output = "Unrecoginized command".to_string();
+                                    continue;
+                                },
+                            },
+                            _ => {
+                                output = "Unrecoginized command".to_string();
+                                continue;
+                            }
+                        }
                     }
                 }
             }

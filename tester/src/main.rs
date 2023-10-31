@@ -14,7 +14,7 @@ fn main() {
     );
 
     cpu.run(
-        Some(| s: String | { 
+        Some(| s: &str | { 
             println!("{}", s);
             print!("Debug Command: ");
 

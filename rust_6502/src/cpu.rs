@@ -3,7 +3,7 @@ pub mod memory;
 pub mod registers;
 pub mod status_flags;
 
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 use instruction::AddressingMode;
 use instruction::ExecutionReturnValues;
@@ -48,7 +48,12 @@ impl Cpu {
         Some((instruction.execute)(self, instruction))
     }
 
-    pub fn run(&mut self, debug: bool, debug_input: Option<fn() -> String>, debug_output: Option<fn(String)>) {
+    pub fn run(
+        &mut self,
+        debug: bool,
+        debug_input: Option<fn() -> String>,
+        debug_output: Option<fn(String)>,
+    ) {
         loop {
             if debug {
                 if let Some(d_i) = debug_input {
@@ -66,15 +71,16 @@ impl Cpu {
 
                 let instruction_end_time = Instant::now();
 
-                let elapsed_time = instruction_end_time.duration_since(instruction_start_time).as_secs_f64();
+                let elapsed_time = instruction_end_time
+                    .duration_since(instruction_start_time)
+                    .as_secs_f64();
 
-                let target_time = self.cycle_duration * execution_return_values.clock_periods as f64;
+                let target_time =
+                    self.cycle_duration * execution_return_values.clock_periods as f64;
 
                 if target_time > elapsed_time {
                     std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
                 }
-
-
             } else {
                 panic!("Unrecognized opcode!!!");
             }
@@ -82,7 +88,7 @@ impl Cpu {
             if debug {
                 if let Some(d_o) = debug_output {
                     let result = "Debugger output";
-    
+
                     d_o(result.to_string());
                 }
             }
@@ -111,7 +117,8 @@ impl Cpu {
             AddressingMode::Implied => String::new(),
             AddressingMode::Relative => {
                 let offset = self.memory.get_8_bit_value(address + 1);
-                let relative_address = Cpu::calculate_address_from_relative_offset((address + 2) as u16, offset);
+                let relative_address =
+                    Cpu::calculate_address_from_relative_offset((address + 2) as u16, offset);
                 format!("${:04X}", relative_address)
             }
             AddressingMode::ZeroPage => {
@@ -136,7 +143,10 @@ impl Cpu {
                 format!("${:04X},Y", self.memory.get_16_bit_value(address + 1))
             }
             AddressingMode::Indirect => {
-                format!("(${:04X})", self.memory.get_16_bit_value(address + 1) as usize)
+                format!(
+                    "(${:04X})",
+                    self.memory.get_16_bit_value(address + 1) as usize
+                )
             }
             AddressingMode::IndirectX => {
                 format!("(${:02X},X)", self.memory.get_8_bit_value(address + 1))
@@ -164,16 +174,11 @@ impl Cpu {
                 result.push_str("\r\n");
 
                 address += length as usize;
-            }
-            else {
-
+            } else {
                 let bytes = format!("{:02X}", self.memory.contents[address]);
 
-                let line = format!(
-                    "{:04X} {:<9} UNRECONIZED OPCODE",
-                    address, bytes
-                );
-                
+                let line = format!("{:04X} {:<9} UNRECONIZED OPCODE", address, bytes);
+
                 result.push_str(&line);
                 result.push_str("\r\n");
 
@@ -194,22 +199,41 @@ impl Cpu {
 
         let offset = self.memory.contents[(self.registers.pc + 1) as usize];
 
-        let relative_address = Cpu::calculate_address_from_relative_offset(self.registers.pc + 2, offset);
+        let relative_address =
+            Cpu::calculate_address_from_relative_offset(self.registers.pc + 2, offset);
 
         self.registers.pc = relative_address;
 
         ExecutionReturnValues::new(
             instruction,
-            Cpu::crosses_boundary_by_two_addresses(old_pc, relative_address)
+            Cpu::crosses_boundary_by_two_addresses(old_pc, relative_address),
         )
     }
 
-    fn get_instruction_for_opcode(&self, location: usize) -> Option<Instruction> {
-        let opcode = self.memory.get_8_bit_value(location);
+    pub fn calculate_address_from_relative_offset(base_address: u16, offset: u8) -> u16 {
+        match offset & 0x80 {
+            0x80 => {
+                let positive_offset = !offset + 1;
+                base_address - positive_offset as u16
+            }
+            _ => base_address + offset as u16,
+        }
+    }
 
-        instruction::INSTRUCTION_SET
-            .into_iter()
-            .find(|i| i.opcode == opcode)
+    pub fn compare(&mut self, register_value: u8, value: u8) {
+        let result = (register_value as u16).wrapping_sub(value as u16);
+
+        self.set_zero_flag(result as u8);
+        self.set_negative_flag(result as u8);
+        self.set_carry_flag(!result);
+    }
+
+    pub fn crosses_boundary_by_address_offset(address: u16, offset: u8) -> bool {
+        address & 0xff00 != (address + offset as u16) & 0xff00
+    }
+
+    pub fn crosses_boundary_by_two_addresses(base_address: u16, address: u16) -> bool {
+        base_address & 0xff00 != address & 0xff00
     }
 
     fn get_address(&self, instruction: Instruction) -> (usize, bool) {
@@ -236,14 +260,20 @@ impl Cpu {
                     .memory
                     .get_8_bit_value((self.registers.pc + 1) as usize);
 
-                ((zero_page_offset as usize + self.registers.x as usize) & 0x00FF, false)
+                (
+                    (zero_page_offset as usize + self.registers.x as usize) & 0x00FF,
+                    false,
+                )
             }
             AddressingMode::ZeroPageY => {
                 let zero_page_offset = self
                     .memory
                     .get_8_bit_value((self.registers.pc + 1) as usize);
 
-                ((zero_page_offset as usize + self.registers.y as usize) & 0x00FF, false)
+                (
+                    (zero_page_offset as usize + self.registers.y as usize) & 0x00FF,
+                    false,
+                )
             }
             AddressingMode::Absolute => {
                 let address = self
@@ -273,7 +303,9 @@ impl Cpu {
                 )
             }
             AddressingMode::Indirect => {
-                let indirect_address = self.memory.get_16_bit_value((self.registers.pc + 1) as usize);
+                let indirect_address = self
+                    .memory
+                    .get_16_bit_value((self.registers.pc + 1) as usize);
                 let address = self.memory.get_16_bit_value(indirect_address as usize);
 
                 (address as usize, false)
@@ -303,60 +335,18 @@ impl Cpu {
         }
     }
 
+    fn get_instruction_for_opcode(&self, location: usize) -> Option<Instruction> {
+        let opcode = self.memory.get_8_bit_value(location);
+
+        instruction::INSTRUCTION_SET
+            .into_iter()
+            .find(|i| i.opcode == opcode)
+    }
+
     fn get_value(&self, instruction: Instruction) -> (u8, bool) {
         let (address, crossed_boundary) = self.get_address(instruction);
 
         (self.memory.get_8_bit_value(address), crossed_boundary)
-    }
-
-    pub fn set_zero_flag(&mut self, value: u8) {
-        self.registers.p.zero_flag = value == 0;
-    }
-
-    pub fn set_negative_flag(&mut self, value: u8) {
-        self.registers.p.negative_flag = value & 0x80 != 0;
-    }
-
-    pub fn set_overflow_flag(&mut self, a: u8, b: u8, result: u8) {
-        // Overflow occurs if both numbers have the same sign and
-        // the result has a different sign.
-
-        // !(a ^ b) - 0x80 bit will be set if both signs are true.
-        // (a ^ result) - 0x80 bit will be set if result has a different sign.
-
-        // Based on a StackOverflow answer: https://stackoverflow.com/questions/29193303/6502-emulation-proper-way-to-implement-adc-and-sbc
-
-        self.registers.p.overflow_flag = (!(a ^ b) & (a ^ result) & 0x80) != 0;
-    }
-
-    pub fn set_carry_flag(&mut self, result: u16) {
-        self.registers.p.carry_flag = result > 0xff;
-    }
-
-    pub fn compare(&mut self, register_value: u8, value: u8) {
-        let result = (register_value as u16).wrapping_sub(value as u16);
-        
-        self.set_zero_flag(result as u8);
-        self.set_negative_flag(result as u8);
-        self.set_carry_flag(!result);
-    }
-
-    pub fn crosses_boundary_by_address_offset(address: u16, offset: u8) -> bool {
-        address & 0xff00 != (address + offset as u16) &0xff00
-    }
-
-    pub fn crosses_boundary_by_two_addresses(base_address: u16, address: u16) -> bool{
-        base_address & 0xff00 != address & 0xff00
-    }
-
-    pub fn calculate_address_from_relative_offset(base_address: u16, offset: u8) -> u16 {
-        match offset & 0x80 {
-            0x80 => {
-                let positive_offset = !offset + 1;
-                base_address - positive_offset as u16
-            }
-            _ => base_address + offset as u16,
-        }
     }
 
     pub fn pull_u8(&mut self) -> u8 {
@@ -394,10 +384,33 @@ impl Cpu {
     pub fn save_register(&mut self, instruction: Instruction, value: u8) -> ExecutionReturnValues {
         let (address, _) = self.get_address(instruction);
 
-
         self.memory.set_8_bit_value(address, value);
 
-        ExecutionReturnValues::new(instruction, false)  
+        ExecutionReturnValues::new(instruction, false)
+    }
+
+    pub fn set_carry_flag(&mut self, result: u16) {
+        self.registers.p.carry_flag = result > 0xff;
+    }
+
+    pub fn set_negative_flag(&mut self, value: u8) {
+        self.registers.p.negative_flag = value & 0x80 != 0;
+    }
+
+    pub fn set_overflow_flag(&mut self, a: u8, b: u8, result: u8) {
+        // Overflow occurs if both numbers have the same sign and
+        // the result has a different sign.
+
+        // !(a ^ b) - 0x80 bit will be set if both signs are true.
+        // (a ^ result) - 0x80 bit will be set if result has a different sign.
+
+        // Based on a StackOverflow answer: https://stackoverflow.com/questions/29193303/6502-emulation-proper-way-to-implement-adc-and-sbc
+
+        self.registers.p.overflow_flag = (!(a ^ b) & (a ^ result) & 0x80) != 0;
+    }
+
+    pub fn set_zero_flag(&mut self, value: u8) {
+        self.registers.p.zero_flag = value == 0;
     }
 
     pub fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -508,14 +521,14 @@ impl Cpu {
     pub fn bpl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, !self.registers.p.negative_flag)
     }
-    
+
     pub fn brk_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.push_u16(self.registers.pc + 2);
 
         self.registers.p.break_flag = true;
         self.push_u8(self.registers.p.to_byte());
         self.registers.p.break_flag = false;
-        
+
         self.registers.p.interrupt_disable_flag = true;
 
         self.registers.pc = self.memory.get_16_bit_value(IRQ_BRK_VECTOR);
@@ -618,7 +631,7 @@ impl Cpu {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         let result = self.registers.a ^ value;
-        
+
         self.set_negative_flag(result);
         self.set_zero_flag(result);
 
@@ -661,7 +674,7 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, false)
     }
-    
+
     pub fn jmp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, _) = self.get_address(instruction);
 
@@ -669,7 +682,7 @@ impl Cpu {
 
         ExecutionReturnValues::new(instruction, false)
     }
-    
+
     pub fn jsr_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, _) = self.get_address(instruction);
 
@@ -751,7 +764,7 @@ impl Cpu {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         let result = self.registers.a | value;
-        
+
         self.set_negative_flag(result);
         self.set_zero_flag(result);
 
@@ -1107,7 +1120,7 @@ mod tests {
         assert_eq!(cpu.registers.sp, 0xFF);
         assert_eq!(result, 0xFF);
     }
-    
+
     #[test]
     fn test_pull_u16() {
         let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
@@ -1116,7 +1129,7 @@ mod tests {
 
         cpu.memory.contents[0x01FE] = 0xFF;
         cpu.memory.contents[0x01FF] = 0x20;
-        
+
         let result = cpu.pull_u16();
 
         assert_eq!(cpu.registers.sp, 0xFF);
@@ -1136,7 +1149,7 @@ mod tests {
         assert_eq!(cpu.registers.sp, 0xfe);
         assert_eq!(cpu.memory.contents[0x01ff], 0xff);
     }
-    
+
     #[test]
     fn test_push_u16() {
         let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
@@ -1162,7 +1175,6 @@ mod tests {
 
         cpu.compare(cpu.registers.a, 0x11);
 
-
         assert!(cpu.registers.p.negative_flag);
         assert!(!cpu.registers.p.zero_flag);
         assert!(!cpu.registers.p.carry_flag);
@@ -1177,7 +1189,6 @@ mod tests {
         cpu.registers.p.carry_flag = false;
 
         cpu.compare(cpu.registers.a, 0x10);
-
 
         assert!(!cpu.registers.p.negative_flag);
         assert!(cpu.registers.p.zero_flag);
@@ -1194,7 +1205,6 @@ mod tests {
 
         cpu.compare(cpu.registers.a, 0x09);
 
-
         assert!(!cpu.registers.p.negative_flag);
         assert!(!cpu.registers.p.zero_flag);
         assert!(cpu.registers.p.carry_flag);
@@ -1209,7 +1219,7 @@ mod tests {
         let mut old_flags = cpu.registers.p.clone();
         old_flags.break_flag = true;
         let old_flags = old_flags.to_byte();
-        
+
         cpu.memory.contents[0x8000] = 0;
         cpu.memory.contents[IRQ_BRK_VECTOR] = 0x02;
         cpu.memory.contents[IRQ_BRK_VECTOR + 1] = 0x40;
@@ -1325,7 +1335,10 @@ mod tests {
 
         let return_values = option_return_values.unwrap();
 
-        assert_eq!(cpu.memory.contents[0x01FF], cpu.registers.p.to_byte() | status_flags::UNUSED_FLAG | status_flags::BREAK_FLAG);
+        assert_eq!(
+            cpu.memory.contents[0x01FF],
+            cpu.registers.p.to_byte() | status_flags::UNUSED_FLAG | status_flags::BREAK_FLAG
+        );
         assert_eq!(cpu.registers.sp, 0xFE);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 3);
@@ -1435,7 +1448,6 @@ mod tests {
         assert_eq!(return_values.clock_periods, 4);
         assert!(!return_values.set_program_counter);
     }
-
 
     #[test]
     fn test_0e_asl_absolute_instruction() {
@@ -2101,7 +2113,6 @@ mod tests {
         cpu.memory.contents[0x8000] = 0x35;
         cpu.memory.contents[0x8001] = 0x30;
 
-
         #[test]
         fn test_2a_rol_accumulator_instruction_without_carry() {
             let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
@@ -2110,15 +2121,15 @@ mod tests {
             cpu.registers.p.zero_flag = true;
             cpu.registers.p.negative_flag = false;
             cpu.registers.pc = 0x8000;
-    
+
             cpu.memory.contents[0x8000] = 0x2A;
-    
+
             let option_return_values = cpu.execute_opcode();
-    
+
             assert!(option_return_values.is_some());
-    
+
             let return_values = option_return_values.unwrap();
-    
+
             assert_eq!(cpu.registers.a, 0x9E);
             assert!(!cpu.registers.p.carry_flag);
             assert!(!cpu.registers.p.zero_flag);
@@ -2127,7 +2138,7 @@ mod tests {
             assert_eq!(return_values.clock_periods, 2);
             assert!(!return_values.set_program_counter);
         }
-    
+
         #[test]
         fn test_2a_rol_accumulator_instruction_with_carry() {
             let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
@@ -2136,15 +2147,15 @@ mod tests {
             cpu.registers.p.zero_flag = true;
             cpu.registers.p.negative_flag = false;
             cpu.registers.pc = 0x8000;
-    
+
             cpu.memory.contents[0x8000] = 0x2A;
-    
+
             let option_return_values = cpu.execute_opcode();
-    
+
             assert!(option_return_values.is_some());
-    
+
             let return_values = option_return_values.unwrap();
-    
+
             assert_eq!(cpu.registers.a, 0x9F);
             assert!(cpu.registers.p.carry_flag);
             assert!(!cpu.registers.p.zero_flag);
@@ -3959,7 +3970,6 @@ mod tests {
         assert!(!return_values.set_program_counter);
     }
 
-
     #[test]
     fn test_9d_sta_absolute_x_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
@@ -4639,7 +4649,6 @@ mod tests {
         assert_eq!(return_values.clock_periods, 2);
         assert!(!return_values.set_program_counter);
     }
-
 
     #[test]
     fn test_c1_cmp_indirect_x_instruction() {
@@ -5629,5 +5638,4 @@ mod tests {
         assert_eq!(return_values.clock_periods, 7);
         assert!(!return_values.set_program_counter);
     }
-
 }

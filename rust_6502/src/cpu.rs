@@ -73,9 +73,17 @@ impl Cpu {
 
                         match split_input.len() {
                             1 => match input.as_str() {
-                                "X" => return,
+                                "S" => { 
+                                    stepping = true;
+                                    break;
+                                },
+                                "X" => break,
+                                "Q" => return,
                                 "?" | "" => {
-                                    output = "\r\nX - Exit Debugger\r\n\
+                                    output = "\r\n\
+                                        S - Step\r\n\
+                                        X - Execute\r\n\
+                                        Q - Quit\r\n\
                                         ? - Help\r\n".to_string();
                                 }
                                 _ => {
@@ -329,11 +337,11 @@ impl Cpu {
                 (address as usize, false)
             }
             AddressingMode::IndirectX => {
-                let indirect_address = self
+                let indirect_address = (self
                     .memory
                     .get_8_bit_value((self.registers.pc + 1) as usize)
                     as usize
-                    + self.registers.x as usize;
+                    + self.registers.x as usize) & 0x00FF;
                 let address = self.memory.get_16_bit_value(indirect_address);
 
                 (address as usize, false)
@@ -388,7 +396,7 @@ impl Cpu {
 
         self.memory.set_8_bit_value(stack_pointer, value);
 
-        self.registers.sp -= 1;
+        self.registers.sp = self.registers.sp.wrapping_sub(1);
     }
 
     pub fn push_u16(&mut self, value: u16) {
@@ -396,7 +404,7 @@ impl Cpu {
 
         self.memory.set_16_bit_value(stack_pointer - 1, value);
 
-        self.registers.sp -= 2;
+        self.registers.sp = self.registers.sp.wrapping_sub(2);
     }
 
     pub fn save_register(&mut self, instruction: Instruction, value: u8) -> ExecutionReturnValues {

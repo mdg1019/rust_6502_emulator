@@ -11,9 +11,9 @@ use instruction::Instruction;
 use memory::Memory;
 use registers::Registers;
 
-const NMI_VECTOR: usize = 0xfffa;
-const RESET_VECTOR: usize = 0xfffc;
-const IRQ_BRK_VECTOR: usize = 0xfffe;
+// const NMI_VECTOR: usize = 0xFFFA;
+const RESET_VECTOR: usize = 0xFFFC;
+const IRQ_BRK_VECTOR: usize = 0xFFFE;
 const STACK_BASE_ADDRESS: usize = 0x0100;
 
 pub struct Cpu {
@@ -50,15 +50,27 @@ impl Cpu {
 
     pub fn run(
         &mut self,
-        debug: bool,
-        debug_input: Option<fn() -> String>,
-        debug_output: Option<fn(String)>,
+        debugger: Option<fn(String) -> String>,
     ) {
+        let debug = debugger.is_some();
+        let mut stepping = true;
+
         loop {
+
             if debug {
-                if let Some(d_i) = debug_input {
-                    let result = d_i();
-                    println!("{}", result);
+                if stepping {
+                    stepping = false;
+
+                    let output = self.registers.to_string() +
+                        "\r\n" + 
+                        &self.disassemble_lines(self.registers.pc as usize, 8);
+    
+                    let input = debugger.unwrap()(output).trim().to_uppercase();
+
+                    match input.as_str() {
+                        "X" => return,
+                        _ => (),
+                    }
                 }
             }
 
@@ -83,18 +95,6 @@ impl Cpu {
                 }
             } else {
                 panic!("Unrecognized opcode!!!");
-            }
-
-            if debug {
-                if let Some(d_o) = debug_output {
-                    let result = "Debugger output";
-
-                    d_o(result.to_string());
-                }
-            }
-
-            if self.registers.pc > 0x0440 {
-                break;
             }
         }
     }

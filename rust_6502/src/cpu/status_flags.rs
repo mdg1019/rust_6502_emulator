@@ -79,34 +79,34 @@ impl StatusFlags {
 
     pub fn to_string(&self) -> String {
         match self.negative_flag {
-            true => "N",
-            false => "-",
+            true => "1",
+            false => "0",
         }
         .to_string()
             + match self.overflow_flag {
-                true => "V",
-                false => "-",
+                true => "1",
+                false => "0",
             }
             + "1"
             + match self.break_flag {
-                true => "B",
-                false => "-",
+                true => "1",
+                false => "0",
             }
             + match self.decimal_flag {
-                true => "D",
-                false => "-",
+                true => "1",
+                false => "0",
             }
             + match self.interrupt_disable_flag {
-                true => "I",
-                false => "-",
+                true => "1",
+                false => "0",
             }
             + match self.zero_flag {
-                true => "Z",
-                false => "-",
+                true => "1",
+                false => "0",
             }
             + match self.carry_flag {
-                true => "C",
-                false => "-",
+                true => "1",
+                false => "0",
             }
     }
 }
@@ -403,7 +403,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[0], '-' as u8);
+        assert_eq!(result.as_bytes()[0], '0' as u8);
     }
 
     #[test]
@@ -413,7 +413,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[0], 'N' as u8);
+        assert_eq!(result.as_bytes()[0], '1' as u8);
     }
 
     #[test]
@@ -422,7 +422,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[1], '-' as u8);
+        assert_eq!(result.as_bytes()[1], '0' as u8);
     }
 
     #[test]
@@ -432,7 +432,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[1], 'V' as u8);
+        assert_eq!(result.as_bytes()[1], '1' as u8);
     }
 
     #[test]
@@ -450,7 +450,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[3], '-' as u8);
+        assert_eq!(result.as_bytes()[3], '0' as u8);
     }
 
     #[test]
@@ -460,7 +460,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[3], 'B' as u8);
+        assert_eq!(result.as_bytes()[3], '1' as u8);
     }
 
     #[test]
@@ -469,7 +469,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[4], '-' as u8);
+        assert_eq!(result.as_bytes()[4], '0' as u8);
     }
 
     #[test]
@@ -479,7 +479,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[4], 'D' as u8);
+        assert_eq!(result.as_bytes()[4], '1' as u8);
     }
 
     #[test]
@@ -488,7 +488,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[5], '-' as u8);
+        assert_eq!(result.as_bytes()[5], '0' as u8);
     }
 
     #[test]
@@ -498,7 +498,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[5], 'I' as u8);
+        assert_eq!(result.as_bytes()[5], '1' as u8);
     }
 
     #[test]
@@ -507,7 +507,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[6], '-' as u8);
+        assert_eq!(result.as_bytes()[6], '0' as u8);
     }
 
     #[test]
@@ -517,7 +517,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[6], 'Z' as u8);
+        assert_eq!(result.as_bytes()[6], '1' as u8);
     }
 
     #[test]
@@ -526,7 +526,7 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[7], '-' as u8);
+        assert_eq!(result.as_bytes()[7], '0' as u8);
     }
 
     #[test]
@@ -536,6 +536,6 @@ mod tests {
 
         let result = status_flags.to_string();
 
-        assert_eq!(result.as_bytes()[7], 'C' as u8);
+        assert_eq!(result.as_bytes()[7], '1' as u8);
     }
 }

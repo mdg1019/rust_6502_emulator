@@ -63,14 +63,6 @@ impl Cpu {
 
                 last_address = self.registers.pc;
 
-                if self.registers.pc == 0x3482 && 
-                    self.memory.contents[0x0D] == 0x00 &&
-                    self.memory.contents[0x12] == 0x60 &&
-                    self.memory.contents[0x0F] == 0x39 {
-                        stepping = true;
-                }
-
-
                 if stepping || trap_hit || self.breakpoints.contains(&self.registers.pc) {
                     stepping = false;
 
@@ -1054,7 +1046,7 @@ impl Cpu {
                 result -= 6;
             }
 
-            if result & 0xFF > 0x99 {
+            if result > 0x99 {
                 result -= 96;
             }
         }

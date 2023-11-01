@@ -48,6 +48,30 @@ pub struct Instruction {
     pub execute: fn(&mut Cpu, Instruction) -> ExecutionReturnValues,
 }
 
+impl Instruction {
+    pub fn binary_search(opcode: u8) -> Option<Instruction> {
+        let mut low = 0;
+        let mut high = INSTRUCTION_SET.len();
+
+        while low < high {
+            let mid = low + (high - low) / 2;
+
+            if INSTRUCTION_SET[mid].opcode == opcode {
+                return Some(INSTRUCTION_SET[mid]);
+            }
+
+            if INSTRUCTION_SET[mid].opcode < opcode {
+                low = mid + 1;
+                continue;
+            }
+
+            high = mid;
+        }
+
+        None    
+    }
+}
+
 const ADC_INSTRUCTION: &str = "ADC";
 const AND_INSTRUCTION: &str = "AND";
 const ASL_INSTRUCTION: &str = "ASL";
@@ -1466,3 +1490,17 @@ pub const INSTRUCTION_SET: [Instruction; 151] = [
         execute: Cpu::inc_instruction,
     },
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_instruction_set_is_in_order() {
+        for i in 0..INSTRUCTION_SET.len() -1 {
+            assert!(INSTRUCTION_SET[i].opcode <= INSTRUCTION_SET[i + 1].opcode);
+        }
+    }
+}
+
+

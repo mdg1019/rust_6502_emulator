@@ -58,6 +58,11 @@ impl Cpu {
         let mut last_address = 0x0000;
 
         loop {
+
+            if self.registers.pc == 0x044B {
+                break;
+            }
+
             if debug {
                 let trap_hit = trap && self.registers.pc == last_address;
 
@@ -218,6 +223,8 @@ impl Cpu {
 
                 if target_time > elapsed_time {
                     std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
+                } else {
+                    // println!("Missed cycle duration! {:04X} {} {} {}", self.registers.pc, elapsed_time, target_time, elapsed_time / target_time * 100.0);
                 }
             } else {
                 panic!(
@@ -468,9 +475,7 @@ impl Cpu {
     fn get_instruction_for_opcode(&self, location: usize) -> Option<Instruction> {
         let opcode = self.memory.get_8_bit_value(location);
 
-        instruction::INSTRUCTION_SET
-            .into_iter()
-            .find(|i| i.opcode == opcode)
+        Instruction::binary_search(opcode)
     }
 
     fn get_value(&self, instruction: Instruction) -> (u8, bool) {

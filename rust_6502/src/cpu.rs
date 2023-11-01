@@ -63,6 +63,14 @@ impl Cpu {
 
                 last_address = self.registers.pc;
 
+                if self.registers.pc == 0x3482 && 
+                    self.memory.contents[0x0D] == 0x00 &&
+                    self.memory.contents[0x12] == 0x60 &&
+                    self.memory.contents[0x0F] == 0x39 {
+                        stepping = true;
+                }
+
+
                 if stepping || trap_hit || self.breakpoints.contains(&self.registers.pc) {
                     stepping = false;
 
@@ -75,8 +83,8 @@ impl Cpu {
 
                     if trap_hit {
                         output = format!(
-                            "Trap encountered @ {:04X}.\r\n {}",
-                            self.registers.pc, debug_display
+                            "{}Trap encountered @ {:04X}.\r\n",
+                            debug_display, self.registers.pc
                         );
                     } else {
                         output = debug_display;
@@ -127,34 +135,64 @@ impl Cpu {
                             },
                             2 => match split_input[0] {
                                 "B" => {
-                                    let re = Regex::new(r"^\$[0-9A-Fa-f]{1,4}$").unwrap();
+                                    let re = Regex::new(r"^[0-9A-Fa-f]{1,4}$").unwrap();
 
                                     if let Some(_) = re.find(split_input[1]) {
-                                        let mut chars = split_input[1].chars();
-
-                                        chars.next();
 
                                         if let Ok(breakpoint) =
-                                            u16::from_str_radix(chars.as_str(), 16)
+                                            u16::from_str_radix(split_input[1], 16)
                                         {
-                                            if let Some(index) = self.breakpoints.iter().position(|&x| x == breakpoint) {
+                                            if let Some(index) = self
+                                                .breakpoints
+                                                .iter()
+                                                .position(|&x| x == breakpoint)
+                                            {
                                                 self.breakpoints.remove(index);
-                                                output = format!("Breakpoint removed @ {:04X}", breakpoint);
-
+                                                output = format!(
+                                                    "Breakpoint removed @ {:04X}",
+                                                    breakpoint
+                                                );
                                             } else {
                                                 self.breakpoints.push(breakpoint);
-                                                output = format!("Breakpoint added @ {:04X}", breakpoint);
+                                                output = format!(
+                                                    "Breakpoint added @ {:04X}",
+                                                    breakpoint
+                                                );
                                             }
                                             continue;
                                         } else {
-                                            output = "Breakpoint requires an valid hexadecimal address: B $FFE2.".to_string();
+                                            output = "Breakpoint requires an valid hexadecimal address: B FFE2.".to_string();
                                         }
-
                                     } else {
-                                        output = "Breakpoint requires an valid hexadecimal address: B $FFE2.".to_string();
+                                        output = "Breakpoint requires an valid hexadecimal address: B FFE2.".to_string();
                                     }
 
                                     continue;
+                                }
+                                "D" => {
+                                    let re = Regex::new(r"^[0-9A-Fa-f]{1,4}$").unwrap();
+
+                                    if let Some(_) = re.find(split_input[1]) {
+
+                                        if let Ok(address) =
+                                            usize::from_str_radix(split_input[1], 16)
+                                        {
+                                            output = format!("{:04X}:", address);
+
+                                            for i in 0..16 {
+                                                output = format!("{} {:02X}", output, self.memory.contents[address + i as usize]);
+                                            }
+
+                                            continue;
+                                        } else {
+                                            output = "Display memory requires an valid hexadecimal address: E FFE2.".to_string();
+                                        }
+                                    } else {
+                                        output = "Display memory requires an valid hexadecimal address: D FFE2.".to_string();
+                                    }
+
+                                    continue;
+
                                 }
                                 _ => {
                                     output = "Unrecoginized command".to_string();
@@ -190,7 +228,10 @@ impl Cpu {
                     std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
                 }
             } else {
-                panic!("Unrecognized opcode @ {:04X}", self.registers.pc);
+                panic!(
+                    "Unrecognized opcode: {:02X} @ {:04X}",
+                    self.memory.contents[self.registers.pc as usize], self.registers.pc
+                );
             }
         }
     }
@@ -5221,6 +5262,39 @@ mod tests {
     }
 
     #[test]
+    fn test_e1_sbc_indirect_x_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
+        cpu.registers.a = 0x80;
+        cpu.registers.x = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0032] = 0x00;
+        cpu.memory.contents[0x0033] = 0x40;
+        cpu.memory.contents[0x4000] = 0x02;
+        cpu.memory.contents[0x8000] = 0xE1;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x7e);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.overflow_flag);
+        assert!(cpu.registers.p.carry_flag); // no borrow
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 6);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_e4_cpx_zero_page_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x10;
@@ -5242,6 +5316,36 @@ mod tests {
         assert!(cpu.registers.p.negative_flag);
         assert!(!cpu.registers.p.zero_flag);
         assert!(!cpu.registers.p.carry_flag);
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 3);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_e5_sbc_zero_page_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
+        cpu.registers.a = 0x80;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0x02;
+        cpu.memory.contents[0x8000] = 0xE5;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x7e);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.overflow_flag);
+        assert!(cpu.registers.p.carry_flag); // no borrow
         assert_eq!(return_values.bytes, 2);
         assert_eq!(return_values.clock_periods, 3);
         assert!(!return_values.set_program_counter);
@@ -5547,6 +5651,37 @@ mod tests {
     }
 
     #[test]
+    fn test_ed_sbc_absolute_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
+        cpu.registers.a = 0x80;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3000] = 0x02;
+        cpu.memory.contents[0x8000] = 0xED;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x7e);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.overflow_flag);
+        assert!(cpu.registers.p.carry_flag); // no borrow
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_ee_inc_absolute_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.p.negative_flag = false;
@@ -5615,6 +5750,70 @@ mod tests {
     }
 
     #[test]
+    fn test_f1_sbc_indirect_y_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
+        cpu.registers.a = 0x80;
+        cpu.registers.y = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0030] = 0x00;
+        cpu.memory.contents[0x0031] = 0x40;
+        cpu.memory.contents[0x4002] = 0x02;
+        cpu.memory.contents[0x8000] = 0xF1;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x7e);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.overflow_flag);
+        assert!(cpu.registers.p.carry_flag); // no borrow
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 5);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_f5_sbc_zero_page_x_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
+        cpu.registers.a = 0x80;
+        cpu.registers.x = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x0032] = 0x02;
+        cpu.memory.contents[0x8000] = 0xF5;
+        cpu.memory.contents[0x8001] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x7e);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.overflow_flag);
+        assert!(cpu.registers.p.carry_flag); // no borrow
+        assert_eq!(return_values.bytes, 2);
+        assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
     fn test_f6_inc_zero_page_x_instruction() {
         let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
         cpu.registers.x = 0x02;
@@ -5657,6 +5856,70 @@ mod tests {
         assert!(cpu.registers.p.decimal_flag);
         assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 2);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_f9_sbc_absolute_y_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
+        cpu.registers.a = 0x80;
+        cpu.registers.y = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3002] = 0x02;
+        cpu.memory.contents[0x8000] = 0xF9;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x7e);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.overflow_flag);
+        assert!(cpu.registers.p.carry_flag); // no borrow
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 4);
+        assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_fd_sbc_absolute_x_instruction() {
+        let mut cpu: Cpu = Cpu::new(0x8000, 1_000_000.0);
+        cpu.registers.a = 0x80;
+        cpu.registers.x = 0x02;
+        cpu.registers.p.zero_flag = true;
+        cpu.registers.p.negative_flag = true;
+        cpu.registers.p.overflow_flag = false;
+        cpu.registers.p.carry_flag = true;
+        cpu.registers.pc = 0x8000;
+
+        cpu.memory.contents[0x3002] = 0x02;
+        cpu.memory.contents[0x8000] = 0xFD;
+        cpu.memory.contents[0x8001] = 0x00;
+        cpu.memory.contents[0x8002] = 0x30;
+
+        let option_return_values = cpu.execute_opcode();
+
+        assert!(option_return_values.is_some());
+
+        let return_values = option_return_values.unwrap();
+
+        assert_eq!(cpu.registers.a, 0x7e);
+        assert!(!cpu.registers.p.zero_flag);
+        assert!(!cpu.registers.p.negative_flag);
+        assert!(cpu.registers.p.overflow_flag);
+        assert!(cpu.registers.p.carry_flag); // no borrow
+        assert_eq!(return_values.bytes, 3);
+        assert_eq!(return_values.clock_periods, 4);
         assert!(!return_values.set_program_counter);
     }
 

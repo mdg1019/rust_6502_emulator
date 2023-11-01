@@ -4,7 +4,7 @@ use std::io;
 use rust_6502::cpu::Cpu;
 
 fn main() {
-    let mut cpu = Cpu::new(0x0400, 1_789_773.0);
+    let mut cpu = Cpu::new(0x0400, 10_789_773.0);
 
     cpu.power_up();
 

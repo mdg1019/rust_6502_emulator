@@ -105,7 +105,7 @@ const TXA_INSTRUCTION: &str = "TXA";
 const TXS_INSTRUCTION: &str = "TXS";
 const TYA_INSTRUCTION: &str = "TYA";
 
-pub const INSTRUCTION_SET: [Instruction; 144] = [
+pub const INSTRUCTION_SET: [Instruction; 151] = [
     Instruction {
         opcode: 0x00,
         mnemonic: BRK_INSTRUCTION,
@@ -1304,6 +1304,15 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         execute: Cpu::cpx_instruction,
     },
     Instruction {
+        opcode: 0xE1,
+        mnemonic: SBC_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 6,
+        addressing_mode: AddressingMode::IndirectX,
+        sets_program_counter: false,
+        execute: Cpu::sbc_instruction,
+    },
+    Instruction {
         opcode: 0xE4,
         mnemonic: CPX_INSTRUCTION,
         bytes: 2,
@@ -1311,6 +1320,15 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
         execute: Cpu::cpx_instruction,
+    },
+    Instruction {
+        opcode: 0xE5,
+        mnemonic: SBC_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 3,
+        addressing_mode: AddressingMode::ZeroPage,
+        sets_program_counter: false,
+        execute: Cpu::sbc_instruction,
     },
     Instruction {
         opcode: 0xE6,
@@ -1358,6 +1376,15 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         execute: Cpu::cpx_instruction,
     },
     Instruction {
+        opcode: 0xED,
+        mnemonic: SBC_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::Absolute,
+        sets_program_counter: false,
+        execute: Cpu::sbc_instruction,
+    },
+    Instruction {
         opcode: 0xEE,
         mnemonic: INC_INSTRUCTION,
         bytes: 3,
@@ -1376,6 +1403,24 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         execute: Cpu::beq_instruction,
     },
     Instruction {
+        opcode: 0xF1,
+        mnemonic: SBC_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 5,
+        addressing_mode: AddressingMode::IndirectY,
+        sets_program_counter: false,
+        execute: Cpu::sbc_instruction,
+    },
+    Instruction {
+        opcode: 0xF5,
+        mnemonic: SBC_INSTRUCTION,
+        bytes: 2,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::ZeroPageX,
+        sets_program_counter: false,
+        execute: Cpu::sbc_instruction,
+    },
+    Instruction {
         opcode: 0xF6,
         mnemonic: INC_INSTRUCTION,
         bytes: 2,
@@ -1392,6 +1437,24 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         addressing_mode: AddressingMode::Implied,
         sets_program_counter: false,
         execute: Cpu::sed_instruction,
+    },
+    Instruction {
+        opcode: 0xF9,
+        mnemonic: SBC_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::AbsoluteY,
+        sets_program_counter: false,
+        execute: Cpu::sbc_instruction,
+    },
+    Instruction {
+        opcode: 0xFD,
+        mnemonic: SBC_INSTRUCTION,
+        bytes: 3,
+        clock_periods: 4,
+        addressing_mode: AddressingMode::AbsoluteX,
+        sets_program_counter: false,
+        execute: Cpu::sbc_instruction,
     },
     Instruction {
         opcode: 0xFE,

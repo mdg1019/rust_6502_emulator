@@ -1148,7 +1148,7 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         clock_periods: 3,
         addressing_mode: AddressingMode::ZeroPage,
         sets_program_counter: false,
-        execute: Cpu::cpx_instruction,
+        execute: Cpu::cpy_instruction,
     },
     Instruction {
         opcode: 0xC5,
@@ -1202,7 +1202,7 @@ pub const INSTRUCTION_SET: [Instruction; 144] = [
         clock_periods: 4,
         addressing_mode: AddressingMode::Absolute,
         sets_program_counter: false,
-        execute: Cpu::cpx_instruction,
+        execute: Cpu::cpy_instruction,
     },
     Instruction {
         opcode: 0xCD,

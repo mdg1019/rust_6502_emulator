@@ -3,6 +3,7 @@ pub mod memory;
 pub mod registers;
 pub mod status_flags;
 
+use regex::Regex;
 use std::time::{Duration, Instant};
 
 use instruction::AddressingMode;
@@ -20,6 +21,7 @@ pub struct Cpu {
     pub registers: Registers,
     pub memory: Memory,
     cycle_duration: f64,
+    breakpoints: Vec<u16>,
 }
 
 impl Cpu {
@@ -28,6 +30,7 @@ impl Cpu {
             registers: Registers::new(),
             memory: Memory::new(),
             cycle_duration: 1.0 / clock_speed,
+            breakpoints: Vec::new(),
         };
 
         cpu.memory.set_16_bit_value(RESET_VECTOR, reset_address);
@@ -60,7 +63,7 @@ impl Cpu {
 
                 last_address = self.registers.pc;
 
-                if stepping || trap_hit {
+                if stepping || trap_hit || self.breakpoints.contains(&self.registers.pc) {
                     stepping = false;
 
                     let debug_display = "\r\n".to_string()
@@ -86,6 +89,10 @@ impl Cpu {
 
                         match split_input.len() {
                             1 => match input.as_str() {
+                                "B" => {
+                                    output = "Breakpoint requires an address: B $FFE2.".to_string();
+                                    continue;
+                                }
                                 "S" => {
                                     stepping = true;
                                     break;
@@ -112,6 +119,42 @@ impl Cpu {
                                         Q - Quit\r\n\
                                         ? - Help\r\n"
                                         .to_string();
+                                }
+                                _ => {
+                                    output = "Unrecoginized command".to_string();
+                                    continue;
+                                }
+                            },
+                            2 => match split_input[0] {
+                                "B" => {
+                                    let re = Regex::new(r"^\$[0-9A-Fa-f]{1,4}$").unwrap();
+
+                                    if let Some(_) = re.find(split_input[1]) {
+                                        let mut chars = split_input[1].chars();
+
+                                        chars.next();
+
+                                        if let Ok(breakpoint) =
+                                            u16::from_str_radix(chars.as_str(), 16)
+                                        {
+                                            if let Some(index) = self.breakpoints.iter().position(|&x| x == breakpoint) {
+                                                self.breakpoints.remove(index);
+                                                output = format!("Breakpoint removed @ {:04X}", breakpoint);
+
+                                            } else {
+                                                self.breakpoints.push(breakpoint);
+                                                output = format!("Breakpoint added @ {:04X}", breakpoint);
+                                            }
+                                            continue;
+                                        } else {
+                                            output = "Breakpoint requires an valid hexadecimal address: B $FFE2.".to_string();
+                                        }
+
+                                    } else {
+                                        output = "Breakpoint requires an valid hexadecimal address: B $FFE2.".to_string();
+                                    }
+
+                                    continue;
                                 }
                                 _ => {
                                     output = "Unrecoginized command".to_string();
@@ -147,7 +190,7 @@ impl Cpu {
                     std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
                 }
             } else {
-                panic!("Unrecognized opcode!!!");
+                panic!("Unrecognized opcode @ {:04X}", self.registers.pc);
             }
         }
     }

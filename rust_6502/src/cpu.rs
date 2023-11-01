@@ -48,24 +48,37 @@ impl Cpu {
         Some((instruction.execute)(self, instruction))
     }
 
-    pub fn run(
-        &mut self,
-        debugger: Option<fn(&str) -> String>,
-    ) {
+    pub fn run(&mut self, debugger: Option<fn(&str) -> String>) {
         let debug = debugger.is_some();
         let mut stepping = true;
+        let mut trap = true;
+        let mut last_address = 0x0000;
 
         loop {
-
             if debug {
-                if stepping {
+                let trap_hit = trap && self.registers.pc == last_address;
+
+                last_address = self.registers.pc;
+
+                if stepping || trap_hit {
                     stepping = false;
 
-                    let mut output = "\r\n".to_string() +
-                        &self.registers.to_string() +
-                        "\r\n" + 
-                        &self.disassemble_lines(self.registers.pc as usize, 8);
-                    
+                    let debug_display = "\r\n".to_string()
+                        + &self.registers.to_string()
+                        + "\r\n"
+                        + &self.disassemble_lines(self.registers.pc as usize, 8);
+
+                    let mut output = String::new();
+
+                    if trap_hit {
+                        output = format!(
+                            "Trap encountered @ {:04X}.\r\n {}",
+                            self.registers.pc, debug_display
+                        );
+                    } else {
+                        output = debug_display;
+                    }
+
                     loop {
                         let input = debugger.unwrap()(&output).trim().to_uppercase();
 
@@ -73,23 +86,37 @@ impl Cpu {
 
                         match split_input.len() {
                             1 => match input.as_str() {
-                                "S" => { 
+                                "S" => {
                                     stepping = true;
                                     break;
-                                },
+                                }
+                                "T" => {
+                                    trap = !trap;
+
+                                    output = format!(
+                                        "Trapping is {}.",
+                                        match trap {
+                                            true => "enabled",
+                                            false => "disabled",
+                                        }
+                                    );
+                                    continue;
+                                }
                                 "X" => break,
                                 "Q" => return,
                                 "?" | "" => {
                                     output = "\r\n\
                                         S - Step\r\n\
+                                        T - Toggle Trapping\
                                         X - Execute\r\n\
                                         Q - Quit\r\n\
-                                        ? - Help\r\n".to_string();
+                                        ? - Help\r\n"
+                                        .to_string();
                                 }
                                 _ => {
                                     output = "Unrecoginized command".to_string();
                                     continue;
-                                },
+                                }
                             },
                             _ => {
                                 output = "Unrecoginized command".to_string();
@@ -341,7 +368,8 @@ impl Cpu {
                     .memory
                     .get_8_bit_value((self.registers.pc + 1) as usize)
                     as usize
-                    + self.registers.x as usize) & 0x00FF;
+                    + self.registers.x as usize)
+                    & 0x00FF;
                 let address = self.memory.get_16_bit_value(indirect_address);
 
                 (address as usize, false)
@@ -1261,7 +1289,7 @@ mod tests {
         assert_eq!(cpu.memory.contents[0x01fd], old_flags);
         assert_eq!(cpu.memory.contents[0x01fe], 0x02);
         assert_eq!(cpu.memory.contents[0x01ff], 0x80);
-        assert_eq!(return_values.bytes,1);
+        assert_eq!(return_values.bytes, 1);
         assert_eq!(return_values.clock_periods, 7);
         assert!(return_values.set_program_counter);
     }

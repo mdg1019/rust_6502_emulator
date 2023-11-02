@@ -4,30 +4,33 @@ use std::io;
 use rust_6502::cpu::Cpu;
 
 fn main() {
+
+    println!("{}", std::env::current_dir().unwrap().to_str().unwrap());
+
     let mut cpu = Cpu::new(0x0400, 1_789_773.0);
 
     cpu.power_up();
 
-    // let _ = cpu
-    //     .memory
-    //     .read_raw_file_into_memory("/home/mark/6502TestFiles/6502_functional_test.bin", 0x0000);
-
     let _ = cpu
         .memory
-        .read_raw_file_into_memory("/home/mark/6502TestFiles/6502_decimal_test.bin", 0x0000);
+        .read_raw_file_into_memory("../test_suites/6502_functional_test.bin", 0x0000);
 
-    // cpu.run(Some(|s: &str| {
-    //     println!("{}", s);
-    //     print!("Debug Command: ");
+    // let _ = cpu
+    //     .memory
+    //     .read_raw_file_into_memory("../test_suites/6502_decimal_test.bin", 0x0000);
 
-    //     io::Write::flush(&mut io::stdout()).expect("flush failed!");
+    cpu.run(Some(|s: &str| {
+        println!("{}", s);
+        print!("Debug Command: ");
 
-    //     let mut buffer = String::new();
+        io::Write::flush(&mut io::stdout()).expect("flush failed!");
 
-    //     io::stdin().read_line(&mut buffer).unwrap();
+        let mut buffer = String::new();
 
-    //     buffer
-    // }));
+        io::stdin().read_line(&mut buffer).unwrap();
 
-    cpu.run(None);
+        buffer
+    }));
+
+    // cpu.run(None);
 }

@@ -12,7 +12,7 @@ use instruction::Instruction;
 use memory::Memory;
 use registers::Registers;
 
-// const NMI_VECTOR: usize = 0xFFFA;
+const NMI_VECTOR: usize = 0xFFFA;
 const RESET_VECTOR: usize = 0xFFFC;
 const IRQ_BRK_VECTOR: usize = 0xFFFE;
 const STACK_BASE_ADDRESS: usize = 0x0100;
@@ -20,8 +20,10 @@ const STACK_BASE_ADDRESS: usize = 0x0100;
 pub struct Cpu {
     pub registers: Registers,
     pub memory: Memory,
+    pub nmi_triggered: bool,
+    pub irq_triggered: bool,
+    pub breakpoints: Vec<u16>,
     cycle_duration: f64,
-    breakpoints: Vec<u16>,
 }
 
 impl Cpu {
@@ -31,6 +33,8 @@ impl Cpu {
             memory: Memory::new(),
             cycle_duration: 1.0 / clock_speed,
             breakpoints: Vec::new(),
+            nmi_triggered: false,
+            irq_triggered: false,
         };
 
         cpu.memory.set_16_bit_value(RESET_VECTOR, reset_address);
@@ -58,9 +62,38 @@ impl Cpu {
         let mut last_address = 0x0000;
 
         loop {
+            if self.nmi_triggered
+                || (self.irq_triggered && !self.registers.p.interrupt_disable_flag)
+            {
+                let instruction_start_time = Instant::now();
 
-            if self.registers.pc == 0x044B {
-                break;
+                self.push_u16(self.registers.pc);
+                self.push_u8(self.registers.p.to_byte());
+
+                self.registers.p.interrupt_disable_flag = true;
+
+                self.registers.pc = match self.nmi_triggered {
+                    true => { 
+                        self.nmi_triggered = false;
+                        self.memory.get_16_bit_value(NMI_VECTOR)
+                    },
+                    false => {
+                        self.irq_triggered = false;
+                        self.memory.get_16_bit_value(IRQ_BRK_VECTOR)
+                    },
+                };
+
+                let instruction_end_time = Instant::now();
+
+                let elapsed_time = instruction_end_time
+                    .duration_since(instruction_start_time)
+                    .as_secs_f64();
+
+                let target_time = self.cycle_duration * 7.0;
+
+                if target_time > elapsed_time {
+                    std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
+                }
             }
 
             if debug {
@@ -135,7 +168,6 @@ impl Cpu {
                                     let re = Regex::new(r"^[0-9A-Fa-f]{1,4}$").unwrap();
 
                                     if let Some(_) = re.find(split_input[1]) {
-
                                         if let Ok(breakpoint) =
                                             u16::from_str_radix(split_input[1], 16)
                                         {
@@ -170,14 +202,17 @@ impl Cpu {
                                     let re = Regex::new(r"^[0-9A-Fa-f]{1,4}$").unwrap();
 
                                     if let Some(_) = re.find(split_input[1]) {
-
                                         if let Ok(address) =
                                             usize::from_str_radix(split_input[1], 16)
                                         {
                                             output = format!("{:04X}:", address);
 
                                             for i in 0..16 {
-                                                output = format!("{} {:02X}", output, self.memory.contents[address + i as usize]);
+                                                output = format!(
+                                                    "{} {:02X}",
+                                                    output,
+                                                    self.memory.contents[address + i as usize]
+                                                );
                                             }
 
                                             continue;
@@ -189,7 +224,6 @@ impl Cpu {
                                     }
 
                                     continue;
-
                                 }
                                 _ => {
                                     output = "Unrecoginized command".to_string();
@@ -223,8 +257,6 @@ impl Cpu {
 
                 if target_time > elapsed_time {
                     std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
-                } else {
-                    // println!("Missed cycle duration! {:04X} {} {} {}", self.registers.pc, elapsed_time, target_time, elapsed_time / target_time * 100.0);
                 }
             } else {
                 panic!(
@@ -5945,5 +5977,73 @@ mod tests {
         assert_eq!(return_values.bytes, 3);
         assert_eq!(return_values.clock_periods, 7);
         assert!(!return_values.set_program_counter);
+    }
+
+    #[test]
+    fn test_nmi_interrupt() {
+        let mut cpu: Cpu = Cpu::new(0x8008, 1_000_000.0);
+        cpu.power_up();
+        
+        cpu.registers.p.from_byte(0xE3);
+        cpu.registers.sp = 0xFF;
+        cpu.memory.set_16_bit_value(NMI_VECTOR, 0x4000);
+        cpu.breakpoints.push(0x4000);
+        cpu.nmi_triggered = true;
+
+        cpu.run(Some(|_: &str| {
+            "Q".to_string()
+        }));
+
+        assert!(cpu.registers.p.interrupt_disable_flag);
+        assert_eq!(cpu.registers.pc, 0x4000);
+        assert_eq!(cpu.registers.sp, 0xFC);
+        assert_eq!(cpu.memory.contents[0x01FD], 0xE3);
+        assert_eq!(cpu.memory.contents[0x01FE], 0x08);
+        assert_eq!(cpu.memory.contents[0x01FF], 0x80);
+    }
+
+    #[test]
+    fn test_irq_interrupt_interrupts_enabled() {
+        let mut cpu: Cpu = Cpu::new(0x8008, 1_000_000.0);
+        cpu.power_up();
+
+        cpu.registers.p.interrupt_disable_flag = false;
+        cpu.registers.p.from_byte(0xE3);
+        cpu.registers.sp = 0xFF;
+        cpu.memory.set_16_bit_value(IRQ_BRK_VECTOR, 0x4000);
+        cpu.breakpoints.push(0x4000);
+        cpu.irq_triggered = true;
+
+        cpu.run(Some(|_: &str| {
+            "Q".to_string()
+        }));
+
+        assert!(cpu.registers.p.interrupt_disable_flag);
+        assert_eq!(cpu.registers.pc, 0x4000);
+        assert_eq!(cpu.registers.sp, 0xFC);
+        assert_eq!(cpu.memory.contents[0x01FD], 0xE3);
+        assert_eq!(cpu.memory.contents[0x01FE], 0x08);
+        assert_eq!(cpu.memory.contents[0x01FF], 0x80);
+    }
+
+    #[test]
+    fn test_irq_interrupt_interrupts_disabled() {
+        let mut cpu: Cpu = Cpu::new(0x8008, 1_000_000.0);
+        cpu.power_up();
+
+        cpu.registers.p.interrupt_disable_flag = true;
+        // cpu.registers.p.from_byte(0xE3);
+        cpu.registers.sp = 0xFF;
+        // cpu.memory.set_16_bit_value(IRQ_BRK_VECTOR, 0x4000);
+        cpu.breakpoints.push(0x8008);
+        cpu.irq_triggered = true;
+
+        cpu.run(Some(|_: &str| {
+            "Q".to_string()
+        }));
+
+        assert!(cpu.registers.p.interrupt_disable_flag);
+        assert_eq!(cpu.registers.pc, 0x8008);
+        assert_eq!(cpu.registers.sp, 0xFF);
     }
 }

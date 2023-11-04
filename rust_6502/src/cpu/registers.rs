@@ -20,8 +20,10 @@ impl Registers {
             pc: 0,
         }
     }
+}
 
-    pub fn to_string(&self) -> String {
+impl ToString for Registers {
+    fn to_string(&self) -> String {
         "PC   A  X  Y  SP P  NV-BDIZC\r\n".to_string() +
         &format!("{:04X} {:02X} {:02X} {:02X} {:02X} {:02X} {}\r\n", 
             self.pc, self.a, self.x, self.y, self.sp, 

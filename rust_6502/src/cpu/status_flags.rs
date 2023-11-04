@@ -76,8 +76,10 @@ impl StatusFlags {
         self.overflow_flag = (byte & OVERFLOW_FLAG) != 0;
         self.negative_flag = (byte & NEGATIVE_FLAG) != 0;
     }
+}
 
-    pub fn to_string(&self) -> String {
+impl ToString for StatusFlags {
+    fn to_string(&self) -> String {
         match self.negative_flag {
             true => "1",
             false => "0",

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::status_flags::StatusFlags;
 
 pub struct Registers {
@@ -22,11 +24,11 @@ impl Registers {
     }
 }
 
-impl ToString for Registers {
-    fn to_string(&self) -> String {
-        "PC   A  X  Y  SP P  NV-BDIZC\r\n".to_string() +
+impl Display for Registers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", "PC   A  X  Y  SP P  NV-BDIZC\r\n".to_string() +
         &format!("{:04X} {:02X} {:02X} {:02X} {:02X} {:02X} {}\r\n", 
             self.pc, self.a, self.x, self.y, self.sp, 
-            self.p.to_byte(), self.p.to_string())
+            self.p.to_byte(), self.p.to_string()))
     }
 }

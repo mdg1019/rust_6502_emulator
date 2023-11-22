@@ -33,6 +33,16 @@ impl StatusFlags {
         }
     }
 
+    pub fn from_byte(&mut self, byte: u8) {
+        self.carry_flag = (byte & StatusFlags::CARRY_FLAG) != 0;
+        self.zero_flag = (byte & StatusFlags::ZERO_FLAG) != 0;
+        self.interrupt_disable_flag = (byte & StatusFlags::INTERRUPT_FLAG) != 0;
+        self.decimal_flag = (byte & StatusFlags::DECIMAL_FLAG) != 0;
+        self.break_flag = (byte & StatusFlags::BREAK_FLAG) != 0;
+        self.overflow_flag = (byte & StatusFlags::OVERFLOW_FLAG) != 0;
+        self.negative_flag = (byte & StatusFlags::NEGATIVE_FLAG) != 0;
+    }
+
     pub fn to_byte(&self) -> u8 {
         let mut result: u8 = 0;
 
@@ -67,16 +77,6 @@ impl StatusFlags {
         }
 
         result
-    }
-
-    pub fn from_byte(&mut self, byte: u8) {
-        self.carry_flag = (byte & StatusFlags::CARRY_FLAG) != 0;
-        self.zero_flag = (byte & StatusFlags::ZERO_FLAG) != 0;
-        self.interrupt_disable_flag = (byte & StatusFlags::INTERRUPT_FLAG) != 0;
-        self.decimal_flag = (byte & StatusFlags::DECIMAL_FLAG) != 0;
-        self.break_flag = (byte & StatusFlags::BREAK_FLAG) != 0;
-        self.overflow_flag = (byte & StatusFlags::OVERFLOW_FLAG) != 0;
-        self.negative_flag = (byte & StatusFlags::NEGATIVE_FLAG) != 0;
     }
 }
 

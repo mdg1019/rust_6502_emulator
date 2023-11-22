@@ -21,43 +21,6 @@ impl Memory {
         }
     }
 
-    pub fn is_in_rom_region(&mut self, address: usize) -> bool {
-        for rom_region in &self.rom_regions {
-            if address >= rom_region.start && address <= rom_region.end {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn get_8_bit_value(&self, address: usize) -> u8 {
-        self.contents[address]
-    }
-
-    pub fn set_8_bit_value(&mut self, address: usize, value: u8) {
-        if !self.is_in_rom_region(address) {
-            self.contents[address] = value;
-        }
-    }
-
-    pub fn get_16_bit_value(&self, address: usize) -> u16 {
-        let lsb = self.contents[address];
-        let msb = self.contents[address + 1];
-
-        (msb as u16) << 8 | lsb as u16
-    }
-
-    pub fn set_16_bit_value(&mut self, address: usize, value: u16) {
-        if !self.is_in_rom_region(address) {
-            let lsb = (value as u16) & 0x00ff;
-            let msb = (value as u16) >> 8;
-
-            self.contents[address] = lsb as u8;
-            self.contents[address + 1] = msb as u8;
-        }
-    }
-
     pub fn create_page_hexdump(&self, page: u8) -> String {
         let mut result = String::new();
         let mut address: usize = (page as usize) << 8;
@@ -98,6 +61,17 @@ impl Memory {
         result
     }
 
+    pub fn get_8_bit_value(&self, address: usize) -> u8 {
+        self.contents[address]
+    }
+
+    pub fn get_16_bit_value(&self, address: usize) -> u16 {
+        let lsb = self.contents[address];
+        let msb = self.contents[address + 1];
+
+        (msb as u16) << 8 | lsb as u16
+    }
+
     pub fn read_raw_file_into_memory(&mut self, file_path: &str, starting_address: usize) -> usize {
         if let Ok(mut file) = File::open(file_path) {
             let mut buffer = Vec::new();
@@ -116,6 +90,32 @@ impl Memory {
         for (i, byte)in vector.iter().enumerate() {
             self.contents[starting_address + i] = *byte;
         }
+    }
+
+    pub fn set_8_bit_value(&mut self, address: usize, value: u8) {
+        if !self.is_in_rom_region(address) {
+            self.contents[address] = value;
+        }
+    }
+
+    pub fn set_16_bit_value(&mut self, address: usize, value: u16) {
+        if !self.is_in_rom_region(address) {
+            let lsb = (value as u16) & 0x00ff;
+            let msb = (value as u16) >> 8;
+
+            self.contents[address] = lsb as u8;
+            self.contents[address + 1] = msb as u8;
+        }
+    }
+
+    fn is_in_rom_region(&mut self, address: usize) -> bool {
+        for rom_region in &self.rom_regions {
+            if address >= rom_region.start && address <= rom_region.end {
+                return true;
+            }
+        }
+
+        false
     }
 }
 

@@ -11,8 +11,7 @@ use instruction::ExecutionReturnValues;
 use instruction::Instruction;
 use memory::Memory;
 use registers::Registers;
-
-use self::status_flags::StatusFlags;
+use status_flags::StatusFlags;
 
 const NMI_VECTOR: usize = 0xFFFA;
 const RESET_VECTOR: usize = 0xFFFC;
@@ -269,6 +268,31 @@ impl Cpu {
         }
     }
 
+    pub fn disassemble_lines(&mut self, starting_address: usize, number_of_lines: u8) -> String {
+        let mut address = starting_address;
+        let mut result = String::new();
+
+        for _ in 0..number_of_lines {
+            if let Some((line, length)) = self.disassemble_opcode(address) {
+                result.push_str(&line);
+                result.push_str("\r\n");
+
+                address += length as usize;
+            } else {
+                let bytes = format!("{:02X}", self.memory.contents[address]);
+
+                let line = format!("{:04X} {:<9} UNRECONIZED OPCODE", address, bytes);
+
+                result.push_str(&line);
+                result.push_str("\r\n");
+
+                address += 1;
+            }
+        }
+
+        result
+    }
+
     pub fn disassemble_opcode(&self, address: usize) -> Option<(String, u8)> {
         let instruction = self.get_instruction_for_opcode(address)?;
 
@@ -334,30 +358,10 @@ impl Cpu {
         Some((line, instruction.bytes))
     }
 
-    pub fn disassemble_lines(&mut self, starting_address: usize, number_of_lines: u8) -> String {
-        let mut address = starting_address;
-        let mut result = String::new();
-
-        for _ in 0..number_of_lines {
-            if let Some((line, length)) = self.disassemble_opcode(address) {
-                result.push_str(&line);
-                result.push_str("\r\n");
-
-                address += length as usize;
-            } else {
-                let bytes = format!("{:02X}", self.memory.contents[address]);
-
-                let line = format!("{:04X} {:<9} UNRECONIZED OPCODE", address, bytes);
-
-                result.push_str(&line);
-                result.push_str("\r\n");
-
-                address += 1;
-            }
-        }
-
-        result
-    }
+    /***********************************************************
+     * 
+     * Private utility functions.
+     ***********************************************************/
 
     fn branch(&mut self, instruction: Instruction, pred: bool) -> ExecutionReturnValues {
         if !pred {
@@ -380,7 +384,7 @@ impl Cpu {
         )
     }
 
-    pub fn calculate_address_from_relative_offset(base_address: u16, offset: u8) -> u16 {
+    fn calculate_address_from_relative_offset(base_address: u16, offset: u8) -> u16 {
         match offset & 0x80 {
             0x80 => {
                 let positive_offset = !offset + 1;
@@ -390,7 +394,7 @@ impl Cpu {
         }
     }
 
-    pub fn compare(&mut self, register_value: u8, value: u8) {
+    fn compare(&mut self, register_value: u8, value: u8) {
         let result = (register_value as u16).wrapping_sub(value as u16);
 
         self.set_zero_flag(result as u8);
@@ -398,11 +402,11 @@ impl Cpu {
         self.set_carry_flag(!result);
     }
 
-    pub fn crosses_boundary_by_address_offset(address: u16, offset: u8) -> bool {
+    fn crosses_boundary_by_address_offset(address: u16, offset: u8) -> bool {
         address & 0xff00 != (address + offset as u16) & 0xff00
     }
 
-    pub fn crosses_boundary_by_two_addresses(base_address: u16, address: u16) -> bool {
+    fn crosses_boundary_by_two_addresses(base_address: u16, address: u16) -> bool {
         base_address & 0xff00 != address & 0xff00
     }
 
@@ -518,7 +522,7 @@ impl Cpu {
         (self.memory.get_8_bit_value(address), crossed_boundary)
     }
 
-    pub fn pull_u8(&mut self) -> u8 {
+    fn pull_u8(&mut self) -> u8 {
         self.registers.sp = self.registers.sp.wrapping_add(1);
 
         let address = 0x0100 + self.registers.sp as usize;
@@ -526,7 +530,7 @@ impl Cpu {
         self.memory.get_8_bit_value(address)
     }
 
-    pub fn pull_u16(&mut self) -> u16 {
+    fn pull_u16(&mut self) -> u16 {
         self.registers.sp = self.registers.sp.wrapping_add(2);
 
         let address = 0x0100 + self.registers.sp as usize - 1;
@@ -534,7 +538,7 @@ impl Cpu {
         self.memory.get_16_bit_value(address)
     }
 
-    pub fn push_u8(&mut self, value: u8) {
+    fn push_u8(&mut self, value: u8) {
         let stack_pointer: usize = STACK_BASE_ADDRESS + self.registers.sp as usize;
 
         self.memory.set_8_bit_value(stack_pointer, value);
@@ -542,7 +546,7 @@ impl Cpu {
         self.registers.sp = self.registers.sp.wrapping_sub(1);
     }
 
-    pub fn push_u16(&mut self, value: u16) {
+    fn push_u16(&mut self, value: u16) {
         let stack_pointer: usize = STACK_BASE_ADDRESS + self.registers.sp as usize;
 
         self.memory.set_16_bit_value(stack_pointer - 1, value);
@@ -550,7 +554,7 @@ impl Cpu {
         self.registers.sp = self.registers.sp.wrapping_sub(2);
     }
 
-    pub fn save_register(&mut self, instruction: Instruction, value: u8) -> ExecutionReturnValues {
+    fn save_register(&mut self, instruction: Instruction, value: u8) -> ExecutionReturnValues {
         let (address, _) = self.get_address(instruction);
 
         self.memory.set_8_bit_value(address, value);
@@ -558,15 +562,15 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn set_carry_flag(&mut self, result: u16) {
+    fn set_carry_flag(&mut self, result: u16) {
         self.registers.p.carry_flag = result > 0xff;
     }
 
-    pub fn set_negative_flag(&mut self, value: u8) {
+    fn set_negative_flag(&mut self, value: u8) {
         self.registers.p.negative_flag = value & 0x80 != 0;
     }
 
-    pub fn set_overflow_flag(&mut self, a: u8, b: u8, result: u8) {
+    fn set_overflow_flag(&mut self, a: u8, b: u8, result: u8) {
         // Overflow occurs if both numbers have the same sign and
         // the result has a different sign.
 
@@ -578,11 +582,17 @@ impl Cpu {
         self.registers.p.overflow_flag = (!(a ^ b) & (a ^ result) & 0x80) != 0;
     }
 
-    pub fn set_zero_flag(&mut self, value: u8) {
+    fn set_zero_flag(&mut self, value: u8) {
         self.registers.p.zero_flag = value == 0;
     }
 
-    pub fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    /***************************************************
+     * 
+     * Implementations of the 6502 instructions.
+     * 
+     ***************************************************/
+
+    fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         let carry = match self.registers.p.carry_flag {
@@ -612,7 +622,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn and_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn and_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         let result = self.registers.a & value;
@@ -625,7 +635,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn asl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn asl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, value, crossed_boundary): (Option<usize>, u8, bool) =
             match instruction.addressing_mode {
                 AddressingMode::Accumulator => (None, self.registers.a, false),
@@ -655,19 +665,19 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn bcc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bcc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, !self.registers.p.carry_flag)
     }
 
-    pub fn bcs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bcs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, self.registers.p.carry_flag)
     }
 
-    pub fn beq_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn beq_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, self.registers.p.zero_flag)
     }
 
-    pub fn bit_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bit_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, _) = self.get_value(instruction);
 
         let result = self.registers.a & value;
@@ -679,19 +689,19 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn bmi_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bmi_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, self.registers.p.negative_flag)
     }
 
-    pub fn bne_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bne_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, !self.registers.p.zero_flag)
     }
 
-    pub fn bpl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bpl_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, !self.registers.p.negative_flag)
     }
 
-    pub fn brk_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn brk_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.push_u16(self.registers.pc + 2);
 
         self.registers.p.break_flag = true;
@@ -705,39 +715,39 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn bvc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bvc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, !self.registers.p.overflow_flag)
     }
 
-    pub fn bvs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn bvs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.branch(instruction, self.registers.p.overflow_flag)
     }
 
-    pub fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn clc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = false;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn cld_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn cld_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.decimal_flag = false;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn cli_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn cli_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.interrupt_disable_flag = false;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn clv_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn clv_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.overflow_flag = false;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn cmp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn cmp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         self.compare(self.registers.a, value);
@@ -745,7 +755,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn cpx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn cpx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         self.compare(self.registers.x, value);
@@ -753,7 +763,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn cpy_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn cpy_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         self.compare(self.registers.y, value);
@@ -761,7 +771,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn dec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn dec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, crossed_boundary) = self.get_address(instruction);
 
         let result = self.memory.contents[address].wrapping_sub(1);
@@ -774,7 +784,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn dex_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn dex_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let result = self.registers.x.wrapping_sub(1);
 
         self.set_negative_flag(result);
@@ -785,7 +795,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn dey_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn dey_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let result = self.registers.y.wrapping_sub(1);
 
         self.set_negative_flag(result);
@@ -796,7 +806,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn eor_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn eor_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         let result = self.registers.a ^ value;
@@ -809,7 +819,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn inc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn inc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, crossed_boundary) = self.get_address(instruction);
 
         let result = self.memory.contents[address].wrapping_add(1);
@@ -822,7 +832,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn inx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn inx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let result = self.registers.x.wrapping_add(1);
 
         self.set_negative_flag(result);
@@ -833,7 +843,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn iny_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn iny_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let result = self.registers.y.wrapping_add(1);
 
         self.set_negative_flag(result);
@@ -844,7 +854,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn jmp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn jmp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, _) = self.get_address(instruction);
 
         self.registers.pc = address as u16;
@@ -852,7 +862,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn jsr_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn jsr_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, _) = self.get_address(instruction);
 
         self.push_u16(self.registers.pc + 2);
@@ -862,7 +872,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn lda_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn lda_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         self.set_zero_flag(value);
@@ -873,7 +883,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn ldx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn ldx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         self.set_negative_flag(value);
@@ -884,7 +894,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn ldy_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn ldy_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         self.set_negative_flag(value);
@@ -895,7 +905,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn lsr_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn lsr_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, value, crossed_boundary): (Option<usize>, u8, bool) =
             match instruction.addressing_mode {
                 AddressingMode::Accumulator => (None, self.registers.a, false),
@@ -925,11 +935,11 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn nop_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn nop_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn ora_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn ora_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         let result = self.registers.a | value;
@@ -942,13 +952,13 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn pha_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn pha_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.push_u8(self.registers.a);
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn php_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn php_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let mut flags = self.registers.p.to_byte();
         flags |= StatusFlags::UNUSED_FLAG | StatusFlags::BREAK_FLAG;
 
@@ -957,7 +967,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn pla_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn pla_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.a = self.pull_u8();
 
         self.set_negative_flag(self.registers.a);
@@ -966,7 +976,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn plp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn plp_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let mut flags = self.pull_u8();
 
         flags &= !StatusFlags::BREAK_FLAG;
@@ -976,7 +986,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn rol_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn rol_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, value, crossed_boundary): (Option<usize>, u8, bool) =
             match instruction.addressing_mode {
                 AddressingMode::Accumulator => (None, self.registers.a, false),
@@ -1012,7 +1022,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn ror_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn ror_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (address, value, crossed_boundary): (Option<usize>, u8, bool) =
             match instruction.addressing_mode {
                 AddressingMode::Accumulator => (None, self.registers.a, false),
@@ -1048,7 +1058,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn rti_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn rti_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let mut flags = self.pull_u8();
 
         flags &= !StatusFlags::BREAK_FLAG;
@@ -1062,7 +1072,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn rts_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn rts_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let address = self.pull_u16();
 
         self.registers.pc = address + 1;
@@ -1070,7 +1080,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn sbc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn sbc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         let (value, crossed_boundary) = self.get_value(instruction);
 
         let carry = match self.registers.p.carry_flag {
@@ -1100,37 +1110,37 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, crossed_boundary)
     }
 
-    pub fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn sec_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.carry_flag = true;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn sed_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn sed_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.decimal_flag = true;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn sei_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn sei_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.p.interrupt_disable_flag = true;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn sta_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn sta_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.save_register(instruction, self.registers.a)
     }
 
-    pub fn stx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn stx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.save_register(instruction, self.registers.x)
     }
 
-    pub fn sty_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn sty_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.save_register(instruction, self.registers.y)
     }
 
-    pub fn tax_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn tax_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.x = self.registers.a;
 
         self.set_negative_flag(self.registers.x);
@@ -1139,7 +1149,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn tay_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn tay_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.y = self.registers.a;
 
         self.set_negative_flag(self.registers.y);
@@ -1148,7 +1158,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn tsx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn tsx_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.x = self.registers.sp;
 
         self.set_negative_flag(self.registers.x);
@@ -1157,7 +1167,7 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn txa_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn txa_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.a = self.registers.x;
 
         self.set_negative_flag(self.registers.a);
@@ -1166,13 +1176,13 @@ impl Cpu {
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn txs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn txs_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.sp = self.registers.x;
 
         ExecutionReturnValues::new(instruction, false)
     }
 
-    pub fn tya_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
+    fn tya_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
         self.registers.a = self.registers.y;
 
         self.set_negative_flag(self.registers.a);

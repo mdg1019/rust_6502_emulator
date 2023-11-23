@@ -6059,11 +6059,48 @@
 <a href="#6059" id="6059">6059</a>
 <a href="#6060" id="6060">6060</a>
 <a href="#6061" id="6061">6061</a>
+<a href="#6062" id="6062">6062</a>
+<a href="#6063" id="6063">6063</a>
+<a href="#6064" id="6064">6064</a>
+<a href="#6065" id="6065">6065</a>
+<a href="#6066" id="6066">6066</a>
+<a href="#6067" id="6067">6067</a>
+<a href="#6068" id="6068">6068</a>
+<a href="#6069" id="6069">6069</a>
+<a href="#6070" id="6070">6070</a>
+<a href="#6071" id="6071">6071</a>
+<a href="#6072" id="6072">6072</a>
+<a href="#6073" id="6073">6073</a>
+<a href="#6074" id="6074">6074</a>
+<a href="#6075" id="6075">6075</a>
+<a href="#6076" id="6076">6076</a>
+<a href="#6077" id="6077">6077</a>
+<a href="#6078" id="6078">6078</a>
+<a href="#6079" id="6079">6079</a>
+<a href="#6080" id="6080">6080</a>
+<a href="#6081" id="6081">6081</a>
+<a href="#6082" id="6082">6082</a>
+<a href="#6083" id="6083">6083</a>
+<a href="#6084" id="6084">6084</a>
+<a href="#6085" id="6085">6085</a>
+<a href="#6086" id="6086">6086</a>
+<a href="#6087" id="6087">6087</a>
+<a href="#6088" id="6088">6088</a>
+<a href="#6089" id="6089">6089</a>
+<a href="#6090" id="6090">6090</a>
+<a href="#6091" id="6091">6091</a>
+<a href="#6092" id="6092">6092</a>
+<a href="#6093" id="6093">6093</a>
+<a href="#6094" id="6094">6094</a>
+<a href="#6095" id="6095">6095</a>
+<a href="#6096" id="6096">6096</a>
+<a href="#6097" id="6097">6097</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>instruction;
 <span class="kw">pub mod </span>memory;
 <span class="kw">pub mod </span>registers;
 <span class="kw">pub mod </span>status_flags;
 
+<span class="kw">use </span>indexable_str::IndexableStr;
 <span class="kw">use </span>regex::Regex;
 <span class="kw">use </span>std::time::{Duration, Instant};
 
@@ -6079,17 +6116,38 @@
 <span class="kw">const </span>IRQ_BRK_VECTOR: usize = <span class="number">0xFFFE</span>;
 <span class="kw">const </span>STACK_BASE_ADDRESS: usize = <span class="number">0x0100</span>;
 
-<span class="kw">pub struct </span>Cpu {
-    <span class="kw">pub </span>registers: Registers,
-    <span class="kw">pub </span>memory: Memory,
-    <span class="kw">pub </span>nmi_triggered: bool,
-    <span class="kw">pub </span>irq_triggered: bool,
-    <span class="kw">pub </span>breakpoints: Vec&lt;u16&gt;,
+<span class="doccomment">/// Emulates a 6502 microprocessor.
+</span><span class="kw">pub struct </span>Cpu {
+    <span class="doccomment">/// The 6502&#39;s registers.
+    </span><span class="kw">pub </span>registers: Registers,
+    <span class="doccomment">/// The 6502&#39;s memory, which is 64K in size.
+    </span><span class="kw">pub </span>memory: Memory,
+    <span class="doccomment">/// Set to `true` to trigger an NMI.
+    </span><span class="kw">pub </span>nmi_triggered: bool,
+    <span class="doccomment">/// Set to `true` to trigger an interrupt.
+    </span><span class="kw">pub </span>irq_triggered: bool,
+    <span class="doccomment">/// A set of breakpoint addresses.
+    </span><span class="kw">pub </span>breakpoints: Vec&lt;u16&gt;,
     cycle_duration: f64,
+    hexadecimal_number_pattern: Regex,
 }
 
 <span class="kw">impl </span>Cpu {
-    <span class="kw">pub fn </span>new(reset_address: u16, clock_speed: f64) -&gt; Cpu {
+    <span class="doccomment">/// Instantiates a new Cpu object.
+    /// 
+    /// # Arguments
+    /// * `reset_address` - Will be stored a memory location 0xFFFC and program execution will begin at this address by calling `Cpu::run()`.
+    /// * `clock_speed` - This is the clock speed that the cpu should try to emulate.
+    /// 
+    /// # Examples
+    /// ```
+    /// // Creates a new Cpu object with an execution address of 0x0400 and
+    /// // a clock speed of 1.79 MHz.
+    /// use rust_6502::cpu::Cpu;
+    /// 
+    /// let cpu = Cpu::new(0x0400, 1_789_773.0);
+    /// ```
+    </span><span class="kw">pub fn </span>new(reset_address: u16, clock_speed: f64) -&gt; Cpu {
         <span class="kw">let </span><span class="kw-2">mut </span>cpu = Cpu {
             registers: Registers::new(),
             memory: Memory::new(),
@@ -6097,6 +6155,7 @@
             breakpoints: Vec::new(),
             nmi_triggered: <span class="bool-val">false</span>,
             irq_triggered: <span class="bool-val">false</span>,
+            hexadecimal_number_pattern: Regex::new(<span class="string">r&quot;^\$[0-9A-Fa-f]{1,4}$&quot;</span>).unwrap(),
         };
 
         cpu.memory.set_16_bit_value(RESET_VECTOR, reset_address);
@@ -6104,20 +6163,56 @@
         cpu
     }
 
-    <span class="kw">pub fn </span>power_up(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Powers up the cpu. This method disables interrupts, sets the stack pointer to 0x01FF,
+    /// and sets the program counter to the address in the reset vector (0xFFFC).
+    </span><span class="kw">pub fn </span>power_up(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.registers.p.interrupt_disable_flag = <span class="bool-val">true</span>;
         <span class="self">self</span>.registers.p.break_flag = <span class="bool-val">false</span>;
         <span class="self">self</span>.registers.sp = <span class="number">0xff</span>;
         <span class="self">self</span>.registers.pc = <span class="self">self</span>.memory.get_16_bit_value(RESET_VECTOR);
     }
 
-    <span class="kw">pub fn </span>execute_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExecutionReturnValues&gt; {
+    <span class="doccomment">/// Executes the opcode at the location of the program counter.
+    /// 
+    /// Returns `Option&lt;ExecutionReturnValues&gt;` if successful.
+    /// Otherwise, `None` is returned.
+    /// 
+    /// Examples:
+    /// ```
+    /// // Executes a single opcode.
+    /// use rust_6502::cpu::Cpu;
+    /// 
+    /// let mut cpu = Cpu::new(0x0400, 1_789_773.0);
+    /// cpu.power_up();
+    /// 
+    /// cpu.registers.a = 0x00;
+    /// 
+    /// // Save a LDA $FF instruction at 0x0400.
+    /// cpu.memory.contents[0x0400] = 0xA9; 
+    /// cpu.memory.contents[0x0401] = 0xFF;
+    /// 
+    /// cpu.execute_opcode();
+    /// 
+    /// assert_eq!(cpu.registers.a, 0xFF);
+    /// ```
+    </span><span class="kw">pub fn </span>execute_opcode(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ExecutionReturnValues&gt; {
         <span class="kw">let </span>instruction = <span class="self">self</span>.get_instruction_for_opcode(<span class="self">self</span>.registers.pc <span class="kw">as </span>usize)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Some</span>((instruction.execute)(<span class="self">self</span>, instruction))
     }
 
-    <span class="kw">pub fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>, debugger: <span class="prelude-ty">Option</span>&lt;<span class="kw">fn</span>(<span class="kw-2">&amp;</span>str) -&gt; String&gt;) {
+    <span class="doccomment">/// This will start program execution at the location in the cpu&#39;s reset vector (0xFFFC).
+    /// You can optionally pass a function callback to perform debugging.
+    /// 
+    /// # Arguments
+    /// * `debugger` - A function callback for performing debugging.
+    /// 
+    /// # Examples
+    /// It&#39;s impractical to try to write an example of this method that 
+    /// rustdoc can execute. Therefore, please refer to README.MD in the
+    /// the repository for examples of using Cpu::run() with and without
+    /// debugging.
+    </span><span class="kw">pub fn </span>run(<span class="kw-2">&amp;mut </span><span class="self">self</span>, debugger: <span class="prelude-ty">Option</span>&lt;<span class="kw">fn</span>(<span class="kw-2">&amp;</span>str) -&gt; String&gt;) {
         <span class="kw">let </span>debug = debugger.is_some();
         <span class="kw">let </span><span class="kw-2">mut </span>stepping = <span class="bool-val">true</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>trap = <span class="bool-val">true</span>;
@@ -6127,35 +6222,7 @@
             <span class="kw">if </span><span class="self">self</span>.nmi_triggered
                 || (<span class="self">self</span>.irq_triggered &amp;&amp; !<span class="self">self</span>.registers.p.interrupt_disable_flag)
             {
-                <span class="kw">let </span>instruction_start_time = Instant::now();
-
-                <span class="self">self</span>.push_u16(<span class="self">self</span>.registers.pc);
-                <span class="self">self</span>.push_u8(<span class="self">self</span>.registers.p.to_byte());
-
-                <span class="self">self</span>.registers.p.interrupt_disable_flag = <span class="bool-val">true</span>;
-
-                <span class="self">self</span>.registers.pc = <span class="kw">match </span><span class="self">self</span>.nmi_triggered {
-                    <span class="bool-val">true </span>=&gt; { 
-                        <span class="self">self</span>.nmi_triggered = <span class="bool-val">false</span>;
-                        <span class="self">self</span>.memory.get_16_bit_value(NMI_VECTOR)
-                    },
-                    <span class="bool-val">false </span>=&gt; {
-                        <span class="self">self</span>.irq_triggered = <span class="bool-val">false</span>;
-                        <span class="self">self</span>.memory.get_16_bit_value(IRQ_BRK_VECTOR)
-                    },
-                };
-
-                <span class="kw">let </span>instruction_end_time = Instant::now();
-
-                <span class="kw">let </span>elapsed_time = instruction_end_time
-                    .duration_since(instruction_start_time)
-                    .as_secs_f64();
-
-                <span class="kw">let </span>target_time = <span class="self">self</span>.cycle_duration * <span class="number">7.0</span>;
-
-                <span class="kw">if </span>target_time &gt; elapsed_time {
-                    std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
-                }
+                <span class="self">self</span>.handle_interrupts();
             }
 
             <span class="kw">if </span>debug {
@@ -6187,113 +6254,44 @@
 
                         <span class="kw">let </span>split_input: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = input.split(<span class="string">&quot; &quot;</span>).collect();
 
-                        <span class="kw">match </span>split_input.len() {
-                            <span class="number">1 </span>=&gt; <span class="kw">match </span>input.as_str() {
-                                <span class="string">&quot;B&quot; </span>=&gt; {
-                                    output = <span class="string">&quot;Breakpoint requires an address: B $FFE2.&quot;</span>.to_string();
-                                    <span class="kw">continue</span>;
-                                }
-                                <span class="string">&quot;S&quot; </span>=&gt; {
-                                    stepping = <span class="bool-val">true</span>;
-                                    <span class="kw">break</span>;
-                                }
-                                <span class="string">&quot;T&quot; </span>=&gt; {
-                                    trap = !trap;
-
-                                    output = <span class="macro">format!</span>(
-                                        <span class="string">&quot;Trapping is {}.&quot;</span>,
-                                        <span class="kw">match </span>trap {
-                                            <span class="bool-val">true </span>=&gt; <span class="string">&quot;enabled&quot;</span>,
-                                            <span class="bool-val">false </span>=&gt; <span class="string">&quot;disabled&quot;</span>,
-                                        }
-                                    );
-                                    <span class="kw">continue</span>;
-                                }
-                                <span class="string">&quot;X&quot; </span>=&gt; <span class="kw">break</span>,
-                                <span class="string">&quot;Q&quot; </span>=&gt; <span class="kw">return</span>,
-                                <span class="string">&quot;?&quot; </span>| <span class="string">&quot;&quot; </span>=&gt; {
-                                    output = <span class="string">&quot;\r\n\
-                                        S - Step\r\n\
-                                        T - Toggle Trapping\
-                                        X - Execute\r\n\
-                                        Q - Quit\r\n\
-                                        ? - Help\r\n&quot;
-                                        </span>.to_string();
-                                }
-                                <span class="kw">_ </span>=&gt; {
-                                    output = <span class="string">&quot;Unrecoginized command&quot;</span>.to_string();
-                                    <span class="kw">continue</span>;
-                                }
+                        <span class="kw">match </span>split_input[<span class="number">0</span>] {
+                            <span class="string">&quot;B&quot; </span>=&gt; {
+                                output = <span class="self">self</span>.debug_toggle_breakpoint(split_input[<span class="number">1</span>]);
+                                <span class="kw">continue</span>;
                             },
-                            <span class="number">2 </span>=&gt; <span class="kw">match </span>split_input[<span class="number">0</span>] {
-                                <span class="string">&quot;B&quot; </span>=&gt; {
-                                    <span class="kw">let </span>re = Regex::new(<span class="string">r&quot;^[0-9A-Fa-f]{1,4}$&quot;</span>).unwrap();
-
-                                    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw">_</span>) = re.find(split_input[<span class="number">1</span>]) {
-                                        <span class="kw">if let </span><span class="prelude-val">Ok</span>(breakpoint) =
-                                            u16::from_str_radix(split_input[<span class="number">1</span>], <span class="number">16</span>)
-                                        {
-                                            <span class="kw">if let </span><span class="prelude-val">Some</span>(index) = <span class="self">self
-                                                </span>.breakpoints
-                                                .iter()
-                                                .position(|<span class="kw-2">&amp;</span>x| x == breakpoint)
-                                            {
-                                                <span class="self">self</span>.breakpoints.remove(index);
-                                                output = <span class="macro">format!</span>(
-                                                    <span class="string">&quot;Breakpoint removed @ {:04X}&quot;</span>,
-                                                    breakpoint
-                                                );
-                                            } <span class="kw">else </span>{
-                                                <span class="self">self</span>.breakpoints.push(breakpoint);
-                                                output = <span class="macro">format!</span>(
-                                                    <span class="string">&quot;Breakpoint added @ {:04X}&quot;</span>,
-                                                    breakpoint
-                                                );
-                                            }
-                                            <span class="kw">continue</span>;
-                                        } <span class="kw">else </span>{
-                                            output = <span class="string">&quot;Breakpoint requires an valid hexadecimal address: B FFE2.&quot;</span>.to_string();
-                                        }
-                                    } <span class="kw">else </span>{
-                                        output = <span class="string">&quot;Breakpoint requires an valid hexadecimal address: B FFE2.&quot;</span>.to_string();
-                                    }
-
-                                    <span class="kw">continue</span>;
-                                }
-                                <span class="string">&quot;D&quot; </span>=&gt; {
-                                    <span class="kw">let </span>re = Regex::new(<span class="string">r&quot;^[0-9A-Fa-f]{1,4}$&quot;</span>).unwrap();
-
-                                    <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw">_</span>) = re.find(split_input[<span class="number">1</span>]) {
-                                        <span class="kw">if let </span><span class="prelude-val">Ok</span>(address) =
-                                            usize::from_str_radix(split_input[<span class="number">1</span>], <span class="number">16</span>)
-                                        {
-                                            output = <span class="macro">format!</span>(<span class="string">&quot;{:04X}:&quot;</span>, address);
-
-                                            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">16 </span>{
-                                                output = <span class="macro">format!</span>(
-                                                    <span class="string">&quot;{} {:02X}&quot;</span>,
-                                                    output,
-                                                    <span class="self">self</span>.memory.contents[address + i <span class="kw">as </span>usize]
-                                                );
-                                            }
-
-                                            <span class="kw">continue</span>;
-                                        } <span class="kw">else </span>{
-                                            output = <span class="string">&quot;Display memory requires an valid hexadecimal address: E FFE2.&quot;</span>.to_string();
-                                        }
-                                    } <span class="kw">else </span>{
-                                        output = <span class="string">&quot;Display memory requires an valid hexadecimal address: D FFE2.&quot;</span>.to_string();
-                                    }
-
-                                    <span class="kw">continue</span>;
-                                }
-                                <span class="kw">_ </span>=&gt; {
-                                    output = <span class="string">&quot;Unrecoginized command&quot;</span>.to_string();
-                                    <span class="kw">continue</span>;
-                                }
+                            <span class="string">&quot;D&quot; </span>=&gt; {
+                                output = <span class="self">self</span>.debug_display_memory(split_input[<span class="number">1</span>]);
+                                <span class="kw">continue</span>;
                             },
+                            <span class="string">&quot;Q&quot; </span>=&gt; <span class="kw">return</span>,
+                            <span class="string">&quot;S&quot; </span>=&gt; {
+                                stepping = <span class="bool-val">true</span>;
+                                <span class="kw">break</span>;
+                            },
+                            <span class="string">&quot;T&quot; </span>=&gt; {
+                                trap = !trap;
+
+                                output = <span class="macro">format!</span>(
+                                    <span class="string">&quot;Trapping is {}.&quot;</span>,
+                                    <span class="kw">match </span>trap {
+                                        <span class="bool-val">true </span>=&gt; <span class="string">&quot;enabled&quot;</span>,
+                                        <span class="bool-val">false </span>=&gt; <span class="string">&quot;disabled&quot;</span>,
+                                    }
+                                );
+                                <span class="kw">continue</span>;
+                            }
+                            <span class="string">&quot;X&quot; </span>=&gt; <span class="kw">break</span>,
+                            <span class="string">&quot;?&quot; </span>| <span class="string">&quot;&quot; </span>=&gt; {
+                                output = <span class="string">&quot;\r\n\
+                                    S - Step\r\n\
+                                    T - Toggle Trapping\
+                                    X - Execute\r\n\
+                                    Q - Quit\r\n\
+                                    ? - Help\r\n&quot;
+                                    </span>.to_string();
+                            }
                             <span class="kw">_ </span>=&gt; {
-                                output = <span class="string">&quot;Unrecoginized command&quot;</span>.to_string();
+                                output = <span class="string">&quot;Unrecognized command&quot;</span>.to_string();
                                 <span class="kw">continue</span>;
                             }
                         }
@@ -6420,7 +6418,7 @@
     }
 
     <span class="comment">/***********************************************************
-     * 
+     *
      * Private utility functions.
      ***********************************************************/
 
@@ -6470,6 +6468,54 @@
     <span class="kw">fn </span>crosses_boundary_by_two_addresses(base_address: u16, address: u16) -&gt; bool {
         base_address &amp; <span class="number">0xff00 </span>!= address &amp; <span class="number">0xff00
     </span>}
+
+    <span class="kw">fn </span>debug_display_memory(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: <span class="kw-2">&amp;</span>str) -&gt; String {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw">_</span>) = <span class="self">self</span>.hexadecimal_number_pattern.find(address) {
+            <span class="kw">let </span>address = usize::from_str_radix(
+                <span class="kw-2">&amp;</span>IndexableStr::new(address)[<span class="number">1</span>..],
+                <span class="number">16</span>,
+            )
+            .unwrap();
+
+            <span class="kw">let </span><span class="kw-2">mut </span>output = <span class="macro">format!</span>(<span class="string">&quot;{:04X}:&quot;</span>, address);
+
+            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">16 </span>{
+                output = <span class="macro">format!</span>(
+                    <span class="string">&quot;{} {:02X}&quot;</span>,
+                    output,
+                    <span class="self">self</span>.memory.contents[address + i <span class="kw">as </span>usize]
+                );
+            }
+
+            <span class="kw">return </span>output;
+        }
+
+        <span class="string">&quot;Display memory requires an valid hexadecimal address: D $FFE2.&quot;</span>.to_string()
+    }
+
+    <span class="kw">fn </span>debug_toggle_breakpoint(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: <span class="kw-2">&amp;</span>str) -&gt; String{
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw">_</span>) = <span class="self">self</span>.hexadecimal_number_pattern.find(address) {
+            <span class="kw">let </span>breakpoint = u16::from_str_radix(
+                <span class="kw-2">&amp;</span>IndexableStr::new(address)[<span class="number">1</span>..],
+                <span class="number">16</span>,
+            )
+            .unwrap();
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(index) =
+                <span class="self">self</span>.breakpoints.iter().position(|<span class="kw-2">&amp;</span>x| x == breakpoint)
+            {
+                <span class="self">self</span>.breakpoints.remove(index);
+                <span class="kw">return </span><span class="macro">format!</span>(<span class="string">&quot;Breakpoint removed @ {:04X}&quot;</span>, breakpoint);
+            }
+
+            <span class="self">self</span>.breakpoints.push(breakpoint);
+            <span class="kw">return </span><span class="macro">format!</span>(<span class="string">&quot;Breakpoint added @ {:04X}&quot;</span>, breakpoint);
+        }
+        
+        <span class="string">&quot;Breakpoint requires an valid hexadecimal address: B $FFE2.&quot;
+                </span>.to_string()
+    }
 
     <span class="kw">fn </span>get_address(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: Instruction) -&gt; (usize, bool) {
         <span class="kw">match </span>instruction.addressing_mode {
@@ -6583,6 +6629,38 @@
         (<span class="self">self</span>.memory.get_8_bit_value(address), crossed_boundary)
     }
 
+    <span class="kw">fn </span>handle_interrupts(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span>instruction_start_time = Instant::now();
+
+        <span class="self">self</span>.push_u16(<span class="self">self</span>.registers.pc);
+        <span class="self">self</span>.push_u8(<span class="self">self</span>.registers.p.to_byte());
+
+        <span class="self">self</span>.registers.p.interrupt_disable_flag = <span class="bool-val">true</span>;
+
+        <span class="self">self</span>.registers.pc = <span class="kw">match </span><span class="self">self</span>.nmi_triggered {
+            <span class="bool-val">true </span>=&gt; {
+                <span class="self">self</span>.nmi_triggered = <span class="bool-val">false</span>;
+                <span class="self">self</span>.memory.get_16_bit_value(NMI_VECTOR)
+            }
+            <span class="bool-val">false </span>=&gt; {
+                <span class="self">self</span>.irq_triggered = <span class="bool-val">false</span>;
+                <span class="self">self</span>.memory.get_16_bit_value(IRQ_BRK_VECTOR)
+            }
+        };
+
+        <span class="kw">let </span>instruction_end_time = Instant::now();
+
+        <span class="kw">let </span>elapsed_time = instruction_end_time
+            .duration_since(instruction_start_time)
+            .as_secs_f64();
+
+        <span class="kw">let </span>target_time = <span class="self">self</span>.cycle_duration * <span class="number">7.0</span>;
+
+        <span class="kw">if </span>target_time &gt; elapsed_time {
+            std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
+        }
+    }
+
     <span class="kw">fn </span>pull_u8(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; u8 {
         <span class="self">self</span>.registers.sp = <span class="self">self</span>.registers.sp.wrapping_add(<span class="number">1</span>);
 
@@ -6648,9 +6726,9 @@
     }
 
     <span class="comment">/***************************************************
-     * 
+     *
      * Implementations of the 6502 instructions.
-     * 
+     *
      ***************************************************/
 
     </span><span class="kw">fn </span>adc_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction: Instruction) -&gt; ExecutionReturnValues {
@@ -12056,16 +12134,14 @@
     </span><span class="kw">fn </span>test_nmi_interrupt() {
         <span class="kw">let </span><span class="kw-2">mut </span>cpu: Cpu = Cpu::new(<span class="number">0x8008</span>, <span class="number">1_000_000.0</span>);
         cpu.power_up();
-        
+
         cpu.registers.p.from_byte(<span class="number">0xE3</span>);
         cpu.registers.sp = <span class="number">0xFF</span>;
         cpu.memory.set_16_bit_value(NMI_VECTOR, <span class="number">0x4000</span>);
         cpu.breakpoints.push(<span class="number">0x4000</span>);
         cpu.nmi_triggered = <span class="bool-val">true</span>;
 
-        cpu.run(<span class="prelude-val">Some</span>(|<span class="kw">_</span>: <span class="kw-2">&amp;</span>str| {
-            <span class="string">&quot;Q&quot;</span>.to_string()
-        }));
+        cpu.run(<span class="prelude-val">Some</span>(|<span class="kw">_</span>: <span class="kw-2">&amp;</span>str| <span class="string">&quot;Q&quot;</span>.to_string()));
 
         <span class="macro">assert!</span>(cpu.registers.p.interrupt_disable_flag);
         <span class="macro">assert_eq!</span>(cpu.registers.pc, <span class="number">0x4000</span>);
@@ -12087,9 +12163,7 @@
         cpu.breakpoints.push(<span class="number">0x4000</span>);
         cpu.irq_triggered = <span class="bool-val">true</span>;
 
-        cpu.run(<span class="prelude-val">Some</span>(|<span class="kw">_</span>: <span class="kw-2">&amp;</span>str| {
-            <span class="string">&quot;Q&quot;</span>.to_string()
-        }));
+        cpu.run(<span class="prelude-val">Some</span>(|<span class="kw">_</span>: <span class="kw-2">&amp;</span>str| <span class="string">&quot;Q&quot;</span>.to_string()));
 
         <span class="macro">assert!</span>(cpu.registers.p.interrupt_disable_flag);
         <span class="macro">assert_eq!</span>(cpu.registers.pc, <span class="number">0x4000</span>);
@@ -12111,9 +12185,7 @@
         </span>cpu.breakpoints.push(<span class="number">0x8008</span>);
         cpu.irq_triggered = <span class="bool-val">true</span>;
 
-        cpu.run(<span class="prelude-val">Some</span>(|<span class="kw">_</span>: <span class="kw-2">&amp;</span>str| {
-            <span class="string">&quot;Q&quot;</span>.to_string()
-        }));
+        cpu.run(<span class="prelude-val">Some</span>(|<span class="kw">_</span>: <span class="kw-2">&amp;</span>str| <span class="string">&quot;Q&quot;</span>.to_string()));
 
         <span class="macro">assert!</span>(cpu.registers.p.interrupt_disable_flag);
         <span class="macro">assert_eq!</span>(cpu.registers.pc, <span class="number">0x8008</span>);

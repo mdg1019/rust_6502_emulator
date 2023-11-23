@@ -19,17 +19,37 @@ const RESET_VECTOR: usize = 0xFFFC;
 const IRQ_BRK_VECTOR: usize = 0xFFFE;
 const STACK_BASE_ADDRESS: usize = 0x0100;
 
+/// Emulates a 6502 microprocessor.
 pub struct Cpu {
+    /// The 6502's registers.
     pub registers: Registers,
+    /// The 6502's memory, which is 64K in size.
     pub memory: Memory,
+    /// Set to `true` to trigger an NMI.
     pub nmi_triggered: bool,
+    /// Set to `true` to trigger an interrupt.
     pub irq_triggered: bool,
+    /// A set of breakpoint addresses.
     pub breakpoints: Vec<u16>,
     cycle_duration: f64,
     hexadecimal_number_pattern: Regex,
 }
 
 impl Cpu {
+    /// Instantiates a new Cpu object.
+    /// 
+    /// # Arguments
+    /// * `reset_address` - Will be stored a memory location 0xFFFC and program execution will begin at this address by calling `Cpu::run()`.
+    /// * `clock_speed` - This is the clock speed that the cpu should try to emulate.
+    /// 
+    /// # Examples
+    /// ```
+    /// // Creates a new Cpu object with an execution address of 0x0400 and
+    /// // a clock speed of 1.79 MHz.
+    /// use rust_6502::cpu::Cpu;
+    /// 
+    /// let cpu = Cpu::new(0x0400, 1_789_773.0);
+    /// ```
     pub fn new(reset_address: u16, clock_speed: f64) -> Cpu {
         let mut cpu = Cpu {
             registers: Registers::new(),
@@ -46,6 +66,8 @@ impl Cpu {
         cpu
     }
 
+    /// Powers up the cpu. This method disables interrupts, sets the stack pointer to 0x01FF,
+    /// and sets the program counter to the address in the reset vector (0xFFFC).
     pub fn power_up(&mut self) {
         self.registers.p.interrupt_disable_flag = true;
         self.registers.p.break_flag = false;
@@ -53,12 +75,46 @@ impl Cpu {
         self.registers.pc = self.memory.get_16_bit_value(RESET_VECTOR);
     }
 
+    /// Executes the opcode at the location of the program counter.
+    /// 
+    /// Returns `Option<ExecutionReturnValues>` if successful.
+    /// Otherwise, `None` is returned.
+    /// 
+    /// Examples:
+    /// ```
+    /// // Executes a single opcode.
+    /// use rust_6502::cpu::Cpu;
+    /// 
+    /// let mut cpu = Cpu::new(0x0400, 1_789_773.0);
+    /// cpu.power_up();
+    /// 
+    /// cpu.registers.a = 0x00;
+    /// 
+    /// // Save a LDA $FF instruction at 0x0400.
+    /// cpu.memory.contents[0x0400] = 0xA9; 
+    /// cpu.memory.contents[0x0401] = 0xFF;
+    /// 
+    /// cpu.execute_opcode();
+    /// 
+    /// assert_eq!(cpu.registers.a, 0xFF);
+    /// ```
     pub fn execute_opcode(&mut self) -> Option<ExecutionReturnValues> {
         let instruction = self.get_instruction_for_opcode(self.registers.pc as usize)?;
 
         Some((instruction.execute)(self, instruction))
     }
 
+    /// This will start program execution at the location in the cpu's reset vector (0xFFFC).
+    /// You can optionally pass a function callback to perform debugging.
+    /// 
+    /// # Arguments
+    /// * `debugger` - A function callback for performing debugging.
+    /// 
+    /// # Examples
+    /// It's impractical to try to write an example of this method that 
+    /// rustdoc can execute. Therefore, please refer to README.MD in the
+    /// the repository for examples of using `Cpu::run()` with and without
+    /// debugging.
     pub fn run(&mut self, debugger: Option<fn(&str) -> String>) {
         let debug = debugger.is_some();
         let mut stepping = true;

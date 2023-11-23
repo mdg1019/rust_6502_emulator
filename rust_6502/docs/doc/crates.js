@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["aho_corasick","memchr","regex","regex_automata","regex_syntax","rust_6502"];
+window.ALL_CRATES = ["aho_corasick","indexable_str","memchr","regex","regex_automata","regex_syntax","rust_6502"];

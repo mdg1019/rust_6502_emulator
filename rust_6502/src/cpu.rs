@@ -3,6 +3,7 @@ pub mod memory;
 pub mod registers;
 pub mod status_flags;
 
+use indexable_str::IndexableStr;
 use regex::Regex;
 use std::time::{Duration, Instant};
 
@@ -25,6 +26,7 @@ pub struct Cpu {
     pub irq_triggered: bool,
     pub breakpoints: Vec<u16>,
     cycle_duration: f64,
+    hexadecimal_number_pattern: Regex,
 }
 
 impl Cpu {
@@ -36,6 +38,7 @@ impl Cpu {
             breakpoints: Vec::new(),
             nmi_triggered: false,
             irq_triggered: false,
+            hexadecimal_number_pattern: Regex::new(r"^\$[0-9A-Fa-f]{1,4}$").unwrap(),
         };
 
         cpu.memory.set_16_bit_value(RESET_VECTOR, reset_address);
@@ -66,35 +69,7 @@ impl Cpu {
             if self.nmi_triggered
                 || (self.irq_triggered && !self.registers.p.interrupt_disable_flag)
             {
-                let instruction_start_time = Instant::now();
-
-                self.push_u16(self.registers.pc);
-                self.push_u8(self.registers.p.to_byte());
-
-                self.registers.p.interrupt_disable_flag = true;
-
-                self.registers.pc = match self.nmi_triggered {
-                    true => { 
-                        self.nmi_triggered = false;
-                        self.memory.get_16_bit_value(NMI_VECTOR)
-                    },
-                    false => {
-                        self.irq_triggered = false;
-                        self.memory.get_16_bit_value(IRQ_BRK_VECTOR)
-                    },
-                };
-
-                let instruction_end_time = Instant::now();
-
-                let elapsed_time = instruction_end_time
-                    .duration_since(instruction_start_time)
-                    .as_secs_f64();
-
-                let target_time = self.cycle_duration * 7.0;
-
-                if target_time > elapsed_time {
-                    std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
-                }
+                self.handle_interrupts();
             }
 
             if debug {
@@ -126,113 +101,44 @@ impl Cpu {
 
                         let split_input: Vec<&str> = input.split(" ").collect();
 
-                        match split_input.len() {
-                            1 => match input.as_str() {
-                                "B" => {
-                                    output = "Breakpoint requires an address: B $FFE2.".to_string();
-                                    continue;
-                                }
-                                "S" => {
-                                    stepping = true;
-                                    break;
-                                }
-                                "T" => {
-                                    trap = !trap;
-
-                                    output = format!(
-                                        "Trapping is {}.",
-                                        match trap {
-                                            true => "enabled",
-                                            false => "disabled",
-                                        }
-                                    );
-                                    continue;
-                                }
-                                "X" => break,
-                                "Q" => return,
-                                "?" | "" => {
-                                    output = "\r\n\
-                                        S - Step\r\n\
-                                        T - Toggle Trapping\
-                                        X - Execute\r\n\
-                                        Q - Quit\r\n\
-                                        ? - Help\r\n"
-                                        .to_string();
-                                }
-                                _ => {
-                                    output = "Unrecoginized command".to_string();
-                                    continue;
-                                }
+                        match split_input[0] {
+                            "B" => {
+                                output = self.debug_toggle_breakpoint(split_input[1]);
+                                continue;
                             },
-                            2 => match split_input[0] {
-                                "B" => {
-                                    let re = Regex::new(r"^[0-9A-Fa-f]{1,4}$").unwrap();
-
-                                    if let Some(_) = re.find(split_input[1]) {
-                                        if let Ok(breakpoint) =
-                                            u16::from_str_radix(split_input[1], 16)
-                                        {
-                                            if let Some(index) = self
-                                                .breakpoints
-                                                .iter()
-                                                .position(|&x| x == breakpoint)
-                                            {
-                                                self.breakpoints.remove(index);
-                                                output = format!(
-                                                    "Breakpoint removed @ {:04X}",
-                                                    breakpoint
-                                                );
-                                            } else {
-                                                self.breakpoints.push(breakpoint);
-                                                output = format!(
-                                                    "Breakpoint added @ {:04X}",
-                                                    breakpoint
-                                                );
-                                            }
-                                            continue;
-                                        } else {
-                                            output = "Breakpoint requires an valid hexadecimal address: B FFE2.".to_string();
-                                        }
-                                    } else {
-                                        output = "Breakpoint requires an valid hexadecimal address: B FFE2.".to_string();
-                                    }
-
-                                    continue;
-                                }
-                                "D" => {
-                                    let re = Regex::new(r"^[0-9A-Fa-f]{1,4}$").unwrap();
-
-                                    if let Some(_) = re.find(split_input[1]) {
-                                        if let Ok(address) =
-                                            usize::from_str_radix(split_input[1], 16)
-                                        {
-                                            output = format!("{:04X}:", address);
-
-                                            for i in 0..16 {
-                                                output = format!(
-                                                    "{} {:02X}",
-                                                    output,
-                                                    self.memory.contents[address + i as usize]
-                                                );
-                                            }
-
-                                            continue;
-                                        } else {
-                                            output = "Display memory requires an valid hexadecimal address: E FFE2.".to_string();
-                                        }
-                                    } else {
-                                        output = "Display memory requires an valid hexadecimal address: D FFE2.".to_string();
-                                    }
-
-                                    continue;
-                                }
-                                _ => {
-                                    output = "Unrecoginized command".to_string();
-                                    continue;
-                                }
+                            "D" => {
+                                output = self.debug_display_memory(split_input[1]);
+                                continue;
                             },
+                            "Q" => return,
+                            "S" => {
+                                stepping = true;
+                                break;
+                            },
+                            "T" => {
+                                trap = !trap;
+
+                                output = format!(
+                                    "Trapping is {}.",
+                                    match trap {
+                                        true => "enabled",
+                                        false => "disabled",
+                                    }
+                                );
+                                continue;
+                            }
+                            "X" => break,
+                            "?" | "" => {
+                                output = "\r\n\
+                                    S - Step\r\n\
+                                    T - Toggle Trapping\
+                                    X - Execute\r\n\
+                                    Q - Quit\r\n\
+                                    ? - Help\r\n"
+                                    .to_string();
+                            }
                             _ => {
-                                output = "Unrecoginized command".to_string();
+                                output = "Unrecognized command".to_string();
                                 continue;
                             }
                         }
@@ -359,7 +265,7 @@ impl Cpu {
     }
 
     /***********************************************************
-     * 
+     *
      * Private utility functions.
      ***********************************************************/
 
@@ -408,6 +314,54 @@ impl Cpu {
 
     fn crosses_boundary_by_two_addresses(base_address: u16, address: u16) -> bool {
         base_address & 0xff00 != address & 0xff00
+    }
+
+    fn debug_display_memory(&mut self, address: &str) -> String {
+        if let Some(_) = self.hexadecimal_number_pattern.find(address) {
+            let address = usize::from_str_radix(
+                &IndexableStr::new(address)[1..],
+                16,
+            )
+            .unwrap();
+
+            let mut output = format!("{:04X}:", address);
+
+            for i in 0..16 {
+                output = format!(
+                    "{} {:02X}",
+                    output,
+                    self.memory.contents[address + i as usize]
+                );
+            }
+
+            return output;
+        }
+
+        "Display memory requires an valid hexadecimal address: D $FFE2.".to_string()
+    }
+
+    fn debug_toggle_breakpoint(&mut self, address: &str) -> String{
+
+        if let Some(_) = self.hexadecimal_number_pattern.find(address) {
+            let breakpoint = u16::from_str_radix(
+                &IndexableStr::new(address)[1..],
+                16,
+            )
+            .unwrap();
+
+            if let Some(index) =
+                self.breakpoints.iter().position(|&x| x == breakpoint)
+            {
+                self.breakpoints.remove(index);
+                return format!("Breakpoint removed @ {:04X}", breakpoint);
+            }
+
+            self.breakpoints.push(breakpoint);
+            return format!("Breakpoint added @ {:04X}", breakpoint);
+        }
+        
+        "Breakpoint requires an valid hexadecimal address: B $FFE2."
+                .to_string()
     }
 
     fn get_address(&self, instruction: Instruction) -> (usize, bool) {
@@ -522,6 +476,38 @@ impl Cpu {
         (self.memory.get_8_bit_value(address), crossed_boundary)
     }
 
+    fn handle_interrupts(&mut self) {
+        let instruction_start_time = Instant::now();
+
+        self.push_u16(self.registers.pc);
+        self.push_u8(self.registers.p.to_byte());
+
+        self.registers.p.interrupt_disable_flag = true;
+
+        self.registers.pc = match self.nmi_triggered {
+            true => {
+                self.nmi_triggered = false;
+                self.memory.get_16_bit_value(NMI_VECTOR)
+            }
+            false => {
+                self.irq_triggered = false;
+                self.memory.get_16_bit_value(IRQ_BRK_VECTOR)
+            }
+        };
+
+        let instruction_end_time = Instant::now();
+
+        let elapsed_time = instruction_end_time
+            .duration_since(instruction_start_time)
+            .as_secs_f64();
+
+        let target_time = self.cycle_duration * 7.0;
+
+        if target_time > elapsed_time {
+            std::thread::sleep(Duration::from_secs_f64(target_time - elapsed_time));
+        }
+    }
+
     fn pull_u8(&mut self) -> u8 {
         self.registers.sp = self.registers.sp.wrapping_add(1);
 
@@ -587,9 +573,9 @@ impl Cpu {
     }
 
     /***************************************************
-     * 
+     *
      * Implementations of the 6502 instructions.
-     * 
+     *
      ***************************************************/
 
     fn adc_instruction(&mut self, instruction: Instruction) -> ExecutionReturnValues {
@@ -5995,16 +5981,14 @@ mod tests {
     fn test_nmi_interrupt() {
         let mut cpu: Cpu = Cpu::new(0x8008, 1_000_000.0);
         cpu.power_up();
-        
+
         cpu.registers.p.from_byte(0xE3);
         cpu.registers.sp = 0xFF;
         cpu.memory.set_16_bit_value(NMI_VECTOR, 0x4000);
         cpu.breakpoints.push(0x4000);
         cpu.nmi_triggered = true;
 
-        cpu.run(Some(|_: &str| {
-            "Q".to_string()
-        }));
+        cpu.run(Some(|_: &str| "Q".to_string()));
 
         assert!(cpu.registers.p.interrupt_disable_flag);
         assert_eq!(cpu.registers.pc, 0x4000);
@@ -6026,9 +6010,7 @@ mod tests {
         cpu.breakpoints.push(0x4000);
         cpu.irq_triggered = true;
 
-        cpu.run(Some(|_: &str| {
-            "Q".to_string()
-        }));
+        cpu.run(Some(|_: &str| "Q".to_string()));
 
         assert!(cpu.registers.p.interrupt_disable_flag);
         assert_eq!(cpu.registers.pc, 0x4000);
@@ -6050,9 +6032,7 @@ mod tests {
         cpu.breakpoints.push(0x8008);
         cpu.irq_triggered = true;
 
-        cpu.run(Some(|_: &str| {
-            "Q".to_string()
-        }));
+        cpu.run(Some(|_: &str| "Q".to_string()));
 
         assert!(cpu.registers.p.interrupt_disable_flag);
         assert_eq!(cpu.registers.pc, 0x8008);

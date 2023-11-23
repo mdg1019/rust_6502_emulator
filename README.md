@@ -1,5 +1,7 @@
 # Rust 6502 Emulator
 
+The API docs are [here](https://mdg1019.github.io/rust_6502_emulator/index.html).
+
 This project implements a 6502 emulator in Rust. I've been wanting to create something with Rust for a couple of years now and I've been wanting to write a microprocessor emulator for even longer. So the two desires came to fruition in this project.
 
 The emulator features a built-in debugger. Admittedly, the debugger is still a little crude. It could use some more functionality. My goal for the time being was to get something useful that I could use to perform emulation testing. It achieved that goal and I'll probably improve it in the future.

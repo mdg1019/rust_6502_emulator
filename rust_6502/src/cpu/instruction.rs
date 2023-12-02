@@ -65,7 +65,11 @@ impl Instruction {
                 continue;
             }
 
-            high = mid;
+            if mid == 0 {
+                return None;
+            }
+
+            high = mid - 1;
         }
 
         None    
